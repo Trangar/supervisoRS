@@ -1,37 +1,22 @@
-mod factorio;
+use femtovg::Color;
+
+// mod factorio;
+mod ui;
 
 fn main() {
-    let Some(install_dir) = factorio::find_factorio_install_dir() else {
-        println!("Factorio install dir not found");
-        println!("Please update the code to include the correct path on your machine");
-        return;
-    };
+    ui::start(1000, 800, "SupervisoRS", true, App {});
+}
 
-    let Some(config_dir) = factorio::find_factorio_config_dir() else {
-        println!("Factorio config dir not found");
-        println!("Please update the code to include the correct path on your machine");
-        return;
-    };
+struct App {}
 
-    println!("Factorio install dir: {:?}", install_dir);
-    println!("Factorio config dir: {:?}", config_dir);
+impl ui::App for App {
+    fn draw(&mut self, canvas: &mut ui::Canvas) {
+        canvas.clear_rect(0, 0, 100, 80, Color::rgbf(0.0, 0.0, 0.0));
+    }
 
-    if dialoguer::Confirm::new()
-        .with_prompt("Do you want to export data?")
-        .default(false)
-        .interact()
-        .unwrap()
-    {
-        let _ = std::fs::remove_dir_all("preset/k2se");
-        std::fs::create_dir_all("preset/k2se").unwrap();
-        factorio::export::export(factorio::export::ExportArgs {
-            mod_directory: &config_dir,
-            factorio_dir: &install_dir,
-            output_dir: std::env::current_dir()
-                .unwrap()
-                .join("preset")
-                .join("k2se")
-                .as_path(),
-        });
+    fn key_down(&mut self, ctx: &mut ui::EventCtx, key: winit::event::VirtualKeyCode) {
+        if key == winit::event::VirtualKeyCode::Escape {
+            ctx.exit();
+        }
     }
 }

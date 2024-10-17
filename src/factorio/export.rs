@@ -8,39 +8,39 @@ pub struct ExportArgs<'a> {
 }
 
 pub fn export(args: ExportArgs) {
-    // let factorio_exe = args.factorio_dir.join("Factorio.exe");
+    let factorio_exe = args.factorio_dir.join("Factorio.exe");
 
-    // for cmd in [
-    //     "--dump-data",
-    //     "--dump-icon-sprites",
-    //     "--dump-prototype-locale",
-    // ] {
-    //     println!("> Factorio.exe {cmd}");
-    //     let process = std::process::Command::new(&factorio_exe)
-    //         .arg(cmd)
-    //         .stdout(std::process::Stdio::piped())
-    //         .stderr(std::process::Stdio::piped())
-    //         .current_dir(args.output_dir)
-    //         .spawn()
-    //         .expect("Failed to execute command");
+    for cmd in [
+        "--dump-data",
+        "--dump-icon-sprites",
+        "--dump-prototype-locale",
+    ] {
+        println!("> Factorio.exe {cmd}");
+        let process = std::process::Command::new(&factorio_exe)
+            .arg(cmd)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .current_dir(args.output_dir)
+            .spawn()
+            .expect("Failed to execute command");
 
-    //     let output = process.wait_with_output().expect("Failed to wait on child");
+        let output = process.wait_with_output().expect("Failed to wait on child");
 
-    //     let stdout = String::from_utf8_lossy(&output.stdout);
+        let stdout = String::from_utf8_lossy(&output.stdout);
 
-    //     if stdout.contains("Initializing Steam API") {
-    //         println!("Launching on steam, waiting for factorio to come online...");
-    //         while !is_factorio_running(cmd) {
-    //             std::thread::sleep(std::time::Duration::from_secs(1));
-    //         }
-    //         println!("Factorio launched, waiting for it to close...");
-    //         while is_factorio_running(cmd) {
-    //             std::thread::sleep(std::time::Duration::from_secs(1));
-    //         }
-    //     }
+        if stdout.contains("Initializing Steam API") {
+            println!("Launching on steam, waiting for factorio to come online...");
+            while !is_factorio_running(cmd) {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+            println!("Factorio launched, waiting for it to close...");
+            while is_factorio_running(cmd) {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
 
-    //     dbg!(output);
-    // }
+        dbg!(output);
+    }
 
     println!(
         "Copying from {:?}",

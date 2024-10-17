@@ -12,7 +12,7 @@ use glutin::{
 use glutin_winit::DisplayBuilder;
 use raw_window_handle::HasRawWindowHandle;
 use winit::{
-    event::{Event, WindowEvent},
+    event::{Event, KeyboardInput, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -181,8 +181,16 @@ pub fn start(
                         physical_size.height,
                     );
                 }
-                WindowEvent::KeyboardInput { input, .. } => {
-                    if input.state == winit::event::ElementState::Pressed {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            state,
+                            virtual_keycode: Some(virtual_keycode),
+                            ..
+                        },
+                    ..
+                } => {
+                    if *state == winit::event::ElementState::Pressed {
                         app.key_down(
                             &mut EventCtx {
                                 canvas: &mut canvas,
@@ -190,7 +198,7 @@ pub fn start(
                                 mousey,
                                 control_flow,
                             },
-                            input.virtual_keycode.unwrap(),
+                            *virtual_keycode,
                         );
                     } else {
                         app.key_up(
@@ -200,7 +208,7 @@ pub fn start(
                                 mousey,
                                 control_flow,
                             },
-                            input.virtual_keycode.unwrap(),
+                            *virtual_keycode,
                         );
                     }
                 }

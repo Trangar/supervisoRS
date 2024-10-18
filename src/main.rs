@@ -2,6 +2,7 @@ use femtovg::{Color, Paint, Path};
 use rustc_hash::FxHashMap;
 
 // mod factorio;
+mod state;
 mod ui;
 
 fn main() {

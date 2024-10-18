@@ -8,7 +8,7 @@ pub struct ExportArgs<'a> {
 }
 
 pub fn export(args: ExportArgs) {
-    let factorio_exe = args.factorio_dir.join("Factorio.exe");
+    let factorio_exe = dbg!(args.factorio_dir.join("factorio.exe"));
 
     for cmd in [
         "--dump-data",

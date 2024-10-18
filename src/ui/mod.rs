@@ -227,18 +227,6 @@ pub fn start(
 
                 ctx.canvas
                     .set_size(size.width, size.height, dpi_factor as f32);
-                ctx.canvas
-                    .clear_rect(0, 0, size.width, size.height, Color::rgbf(0.3, 0.3, 0.32));
-
-                // let height = size.height as f32;
-                // let width = size.width as f32;
-
-                // let pt = canvas
-                //     .transform()
-                //     .inversed()
-                //     .transform_point(mousex, mousey);
-                // let rel_mousex = pt.0;
-                // let rel_mousey = pt.1;
 
                 app.draw(ctx.canvas);
 

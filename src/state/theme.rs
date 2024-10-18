@@ -11,9 +11,18 @@ pub struct Theme {
     pub error: ColorAndText,
 }
 
+impl Default for Theme {
+    fn default() -> Self {
+        match dark_light::detect() {
+            dark_light::Mode::Light => Self::light(),
+            _ => Self::dark(),
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ColorAndText {
-    pub background: Color,
+    pub color: Color,
     pub text: Color,
 }
 
@@ -22,24 +31,24 @@ impl Theme {
     pub fn dark() -> Theme {
         Theme {
             background: ColorAndText {
-                background: Color::rgb(0x12, 0x12, 0x12),
+                color: Color::rgb(0x12, 0x12, 0x12),
                 text: Color::rgb(0xFF, 0xFF, 0xFF),
             },
             layer_direction: ColorDirection::Lighten,
             primary: ColorAndText {
-                background: Color::rgb(0xBB, 0x86, 0xFC),
+                color: Color::rgb(0xBB, 0x86, 0xFC),
                 text: Color::rgb(0, 0, 0),
             },
             primary_variant: ColorAndText {
-                background: Color::rgb(0x37, 0x00, 0xB3),
+                color: Color::rgb(0x37, 0x00, 0xB3),
                 text: Color::rgb(0xFF, 0xFF, 0xFF),
             },
             secondary: ColorAndText {
-                background: Color::rgb(0x03, 0xDA, 0xC6),
+                color: Color::rgb(0x03, 0xDA, 0xC6),
                 text: Color::rgb(0, 0, 0),
             },
             error: ColorAndText {
-                background: Color::rgb(0xCF, 0x66, 0x79),
+                color: Color::rgb(0xCF, 0x66, 0x79),
                 text: Color::rgb(0, 0, 0),
             },
         }
@@ -48,32 +57,31 @@ impl Theme {
     pub fn light() -> Theme {
         Theme {
             background: ColorAndText {
-                background: Color::rgb(0xFF, 0xFF, 0xFF),
+                color: Color::rgb(0xFF, 0xFF, 0xFF),
                 text: Color::rgb(0, 0, 0),
             },
             layer_direction: ColorDirection::Darken,
             primary: ColorAndText {
-                background: Color::rgb(0x62, 0x00, 0xEE),
+                color: Color::rgb(0x62, 0x00, 0xEE),
                 text: Color::rgb(0xFF, 0xFF, 0xFF),
             },
             primary_variant: ColorAndText {
-                background: Color::rgb(0x37, 0x00, 0xB3),
+                color: Color::rgb(0x37, 0x00, 0xB3),
                 text: Color::rgb(0xFF, 0xFF, 0xFF),
             },
             secondary: ColorAndText {
-                background: Color::rgb(0x03, 0xDA, 0xC6),
+                color: Color::rgb(0x03, 0xDA, 0xC6),
                 text: Color::rgb(0, 0, 0),
             },
             error: ColorAndText {
-                background: Color::rgb(0xB0, 0x00, 0x20),
+                color: Color::rgb(0xB0, 0x00, 0x20),
                 text: Color::rgb(0xFF, 0xFF, 0xFF),
             },
         }
     }
 
     pub fn layer_color(&self, layer: usize) -> Color {
-        self.layer_direction
-            .apply(self.background.background, layer)
+        self.layer_direction.apply(self.background.color, layer)
     }
 }
 
@@ -207,17 +215,17 @@ impl ColorDirection {
         match self {
             ColorDirection::Darken => {
                 let mut hsl = Hsla::new(color);
-                hsl.l += 0.08 * times as f32;
-                if hsl.l > 1.0 {
-                    hsl.l = 1.0;
+                hsl.l -= 0.08 * times as f32;
+                if hsl.l < 0.0 {
+                    hsl.l = 0.0;
                 }
                 hsl.to_color()
             }
             ColorDirection::Lighten => {
                 let mut hsl = Hsla::new(color);
-                hsl.l -= 0.08 * times as f32;
-                if hsl.l < 0.0 {
-                    hsl.l = 0.0;
+                hsl.l += 0.08 * times as f32;
+                if hsl.l > 1.0 {
+                    hsl.l = 1.0;
                 }
                 hsl.to_color()
             }
@@ -288,7 +296,7 @@ impl Hsla {
     pub const fn to_color(self) -> Color {
         let Hsla { h, s, l, a } = self;
         if s == 0. {
-            return Color::rgbaf(1., 1., 1., a); // achromatic
+            return Color::rgbaf(l, l, l, a); // achromatic
         }
 
         const fn hue2rgb(p: f32, q: f32, t: f32) -> f32 {

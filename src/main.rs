@@ -1,19 +1,31 @@
-use femtovg::{Color, Paint, Path};
+use femtovg::{Paint, Path};
 use rustc_hash::FxHashMap;
+use state::{Preset, Theme};
+use ui::Canvas;
 
-// mod factorio;
+mod factorio;
 mod state;
 mod ui;
 mod utils;
 
 fn main() {
-    ui::start(1000, 800, "SupervisoRS", true, App::default());
+    // let factorio_path = factorio::find_factorio_install_dir().unwrap();
+    // let config_dir = factorio::find_factorio_config_dir().unwrap();
+
+    // factorio::export::export(factorio::export::ExportArgs {
+    //     mod_directory: &config_dir,
+    //     factorio_dir: &factorio_path,
+    //     output_dir: &std::env::current_dir().unwrap().join("preset").join("k2se"),
+    // });
+    let preset = Preset::load("k2se");
+    // ui::start(1000, 800, "SupervisoRS", true, App::default());
 }
 
 struct App {
     nodes: FxHashMap<NodeId, Node>,
     connections: Vec<Connection>,
     dragging: bool,
+    theme: Theme,
 }
 
 impl Default for App {
@@ -22,52 +34,23 @@ impl Default for App {
             nodes: utils::demo_nodes(),
             connections: Vec::new(),
             dragging: false,
+            theme: Theme::default(),
         }
     }
 }
 
 impl ui::App for App {
     fn draw(&mut self, canvas: &mut ui::Canvas) {
-        let tile_background = Paint::color(Color::rgbf(0.0, 0.0, 0.0));
-        let connection_background = Paint::color(Color::rgbf(0.0, 255.0, 0.0));
+        canvas.clear_rect(
+            0,
+            0,
+            canvas.width(),
+            canvas.height(),
+            self.theme.background.color,
+        );
+
         for node in self.nodes.values() {
-            let mut path = Path::new();
-            path.rounded_rect(node.x - 50.0, node.y - 50.0, 100.0, 100.0, 20.0);
-            canvas.fill_path(&path, &tile_background);
-
-            if !node.inputs.is_empty() {
-                let (mut input_offset, input_step) = node.direction.input_offset();
-                input_offset = (node.x + input_offset.0, node.y + input_offset.1);
-                input_offset = (
-                    input_offset.0 - (input_step.0 * (node.inputs.len() - 1) as f32 / 2.),
-                    input_offset.1 - (input_step.1 * (node.inputs.len() - 1) as f32 / 2.),
-                );
-
-                for (i, _input) in node.inputs.iter().enumerate() {
-                    let x = input_offset.0 + input_step.0 * i as f32;
-                    let y = input_offset.1 + input_step.1 * i as f32;
-                    let mut path = Path::new();
-                    path.circle(x, y, 10.0);
-                    canvas.fill_path(&path, &connection_background);
-                }
-            }
-
-            if !node.outputs.is_empty() {
-                let (mut output_offset, output_step) = node.direction.output_offset();
-                output_offset = (node.x + output_offset.0, node.y + output_offset.1);
-                output_offset = (
-                    output_offset.0 - (output_step.0 * (node.outputs.len() - 1) as f32 / 2.),
-                    output_offset.1 - (output_step.1 * (node.outputs.len() - 1) as f32 / 2.),
-                );
-
-                for (i, _output) in node.outputs.iter().enumerate() {
-                    let x = output_offset.0 + output_step.0 * i as f32;
-                    let y = output_offset.1 + output_step.1 * i as f32;
-                    let mut path = Path::new();
-                    path.circle(x, y, 10.0);
-                    canvas.fill_path(&path, &connection_background);
-                }
-            }
+            draw_node(canvas, node, &self.theme);
         }
     }
 
@@ -102,6 +85,56 @@ impl ui::App for App {
             }) => y as f32,
         };
         ctx.zoom_at_mouse(zoom);
+    }
+}
+
+fn draw_node(canvas: &mut Canvas, node: &Node, theme: &Theme) {
+    let mut path = Path::new();
+    path.rounded_rect(node.x - 50.0, node.y - 50.0, 100.0, 100.0, 20.0);
+    let bg_paint = Paint::color(theme.layer_color(1));
+    let border_paint = Paint::color(theme.layer_color(2));
+
+    canvas.fill_path(&path, &bg_paint);
+    canvas.stroke_path(&path, &border_paint);
+
+    let bg_paint = Paint::color(theme.layer_color(2));
+    let border_paint = Paint::color(theme.layer_color(3));
+
+    if !node.inputs.is_empty() {
+        let (mut input_offset, input_step) = node.direction.input_offset();
+        input_offset = (node.x + input_offset.0, node.y + input_offset.1);
+        input_offset = (
+            input_offset.0 - (input_step.0 * (node.inputs.len() - 1) as f32 / 2.),
+            input_offset.1 - (input_step.1 * (node.inputs.len() - 1) as f32 / 2.),
+        );
+
+        for (i, _input) in node.inputs.iter().enumerate() {
+            let x = input_offset.0 + input_step.0 * i as f32;
+            let y = input_offset.1 + input_step.1 * i as f32;
+            let mut path = Path::new();
+            path.rounded_rect(x - 10., y - 10., 20., 20., 5.0);
+            canvas.fill_path(&path, &bg_paint);
+            canvas.stroke_path(&path, &border_paint);
+        }
+    }
+
+    if !node.outputs.is_empty() {
+        let (mut output_offset, output_step) = node.direction.output_offset();
+        output_offset = (node.x + output_offset.0, node.y + output_offset.1);
+        output_offset = (
+            output_offset.0 - (output_step.0 * (node.outputs.len() - 1) as f32 / 2.),
+            output_offset.1 - (output_step.1 * (node.outputs.len() - 1) as f32 / 2.),
+        );
+
+        for (i, _output) in node.outputs.iter().enumerate() {
+            let x = output_offset.0 + output_step.0 * i as f32;
+            let y = output_offset.1 + output_step.1 * i as f32;
+            let mut path = Path::new();
+            path.rounded_rect(x - 10., y - 10., 20., 20., 5.0);
+
+            canvas.fill_path(&path, &bg_paint);
+            canvas.stroke_path(&path, &border_paint);
+        }
     }
 }
 

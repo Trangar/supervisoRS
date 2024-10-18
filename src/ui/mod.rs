@@ -20,12 +20,13 @@ use winit::{
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
 pub trait App {
     fn draw(&mut self, _canvas: &mut Canvas) {}
-    fn resize(&mut self, ctx: &mut EventCtx, _width: u32, _height: u32) {}
-    fn key_down(&mut self, ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
-    fn key_up(&mut self, ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
-    fn mouse_move(&mut self, ctx: &mut EventCtx, _x: f32, _y: f32) {}
-    fn mouse_down(&mut self, ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
-    fn mouse_up(&mut self, ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
+    fn resize(&mut self, _ctx: &mut EventCtx, _width: u32, _height: u32) {}
+    fn key_down(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
+    fn key_up(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
+    fn mouse_move(&mut self, _ctx: &mut EventCtx, _x: f32, _y: f32) {}
+    fn mouse_down(&mut self, _ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
+    fn mouse_up(&mut self, _ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
+    fn mouse_scroll(&mut self, _ctx: &mut EventCtx, _delta: winit::event::MouseScrollDelta) {}
 }
 
 pub fn start(
@@ -160,8 +161,16 @@ pub fn start(
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
+        let mut ctx = EventCtx {
+            canvas: &mut canvas,
+            mousex,
+            mousey,
+            redraw: false,
+            control_flow,
+        };
+
         match event {
-            Event::LoopDestroyed => *control_flow = ControlFlow::Exit,
+            Event::LoopDestroyed => ctx.exit(),
             Event::WindowEvent { ref event, .. } => match event {
                 #[cfg(not(target_arch = "wasm32"))]
                 WindowEvent::Resized(physical_size) => {
@@ -170,16 +179,7 @@ pub fn start(
                         physical_size.width.try_into().unwrap(),
                         physical_size.height.try_into().unwrap(),
                     );
-                    app.resize(
-                        &mut EventCtx {
-                            canvas: &mut canvas,
-                            mousex,
-                            mousey,
-                            control_flow,
-                        },
-                        physical_size.width,
-                        physical_size.height,
-                    );
+                    app.resize(&mut ctx, physical_size.width, physical_size.height);
                 }
                 WindowEvent::KeyboardInput {
                     input:
@@ -191,79 +191,28 @@ pub fn start(
                     ..
                 } => {
                     if *state == winit::event::ElementState::Pressed {
-                        app.key_down(
-                            &mut EventCtx {
-                                canvas: &mut canvas,
-                                mousex,
-                                mousey,
-                                control_flow,
-                            },
-                            *virtual_keycode,
-                        );
+                        app.key_down(&mut ctx, *virtual_keycode);
                     } else {
-                        app.key_up(
-                            &mut EventCtx {
-                                canvas: &mut canvas,
-                                mousex,
-                                mousey,
-                                control_flow,
-                            },
-                            *virtual_keycode,
-                        );
+                        app.key_up(&mut ctx, *virtual_keycode);
                     }
+                }
+                WindowEvent::MouseWheel { delta, .. } => {
+                    app.mouse_scroll(&mut ctx, *delta);
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     mousex = position.x as f32;
                     mousey = position.y as f32;
 
-                    app.mouse_move(
-                        &mut EventCtx {
-                            canvas: &mut canvas,
-                            mousex,
-                            mousey,
-                            control_flow,
-                        },
-                        mousex,
-                        mousey,
-                    );
+                    app.mouse_move(&mut ctx, mousex, mousey);
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *state == winit::event::ElementState::Pressed {
-                        app.mouse_down(
-                            &mut EventCtx {
-                                canvas: &mut canvas,
-                                mousex,
-                                mousey,
-                                control_flow,
-                            },
-                            *button,
-                        );
+                        app.mouse_down(&mut ctx, *button);
                     } else {
-                        app.mouse_up(
-                            &mut EventCtx {
-                                canvas: &mut canvas,
-                                mousex,
-                                mousey,
-                                control_flow,
-                            },
-                            *button,
-                        );
+                        app.mouse_up(&mut ctx, *button);
                     }
                 }
-                WindowEvent::MouseWheel {
-                    device_id: _,
-                    delta: winit::event::MouseScrollDelta::LineDelta(_, y),
-                    ..
-                } => {
-                    let pt = canvas
-                        .transform()
-                        .inversed()
-                        .transform_point(mousex, mousey);
-                    canvas.translate(pt.0, pt.1);
-                    canvas.scale(1.0 + (y / 10.0), 1.0 + (y / 10.0));
-                    canvas.translate(-pt.0, -pt.1);
-                }
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::CloseRequested => ctx.exit(),
                 _ => (),
             },
             Event::RedrawRequested(_) => {
@@ -276,8 +225,10 @@ pub fn start(
 
                 // let t = start.elapsed().as_secs_f32();
 
-                canvas.set_size(size.width, size.height, dpi_factor as f32);
-                canvas.clear_rect(0, 0, size.width, size.height, Color::rgbf(0.3, 0.3, 0.32));
+                ctx.canvas
+                    .set_size(size.width, size.height, dpi_factor as f32);
+                ctx.canvas
+                    .clear_rect(0, 0, size.width, size.height, Color::rgbf(0.3, 0.3, 0.32));
 
                 // let height = size.height as f32;
                 // let width = size.width as f32;
@@ -289,20 +240,22 @@ pub fn start(
                 // let rel_mousex = pt.0;
                 // let rel_mousey = pt.1;
 
-                println!("Drawing time!");
+                app.draw(ctx.canvas);
 
-                app.draw(&mut canvas);
-
-                canvas.save_with(|canvas| {
+                ctx.canvas.save_with(|canvas| {
                     canvas.reset();
                 });
 
-                canvas.flush();
+                ctx.canvas.flush();
                 #[cfg(not(target_arch = "wasm32"))]
                 surface.swap_buffers(&context).unwrap();
             }
             Event::MainEventsCleared => {}
             _ => (),
+        }
+
+        if ctx.redraw {
+            window.request_redraw();
         }
     });
 }
@@ -312,11 +265,37 @@ pub struct EventCtx<'a> {
     pub mousex: f32,
     pub mousey: f32,
 
+    redraw: bool,
+
     control_flow: &'a mut ControlFlow,
 }
 
-impl<'a> EventCtx<'a> {
+impl EventCtx<'_> {
     pub fn exit(&mut self) {
         *self.control_flow = ControlFlow::Exit;
+    }
+
+    pub fn zoom_at_mouse(&mut self, zoom: f32) {
+        let pt = self
+            .canvas
+            .transform()
+            .inversed()
+            .transform_point(self.mousex, self.mousey);
+        self.canvas.translate(pt.0, pt.1);
+        self.canvas.scale(1.0 + (zoom / 10.0), 1.0 + (zoom / 10.0));
+        self.canvas.translate(-pt.0, -pt.1);
+        self.redraw = true;
+    }
+
+    pub fn translate(&mut self, x: f32, y: f32) {
+        let p0 = self
+            .canvas
+            .transform()
+            .inversed()
+            .transform_point(self.mousex, self.mousey);
+        let p1 = self.canvas.transform().inversed().transform_point(x, y);
+
+        self.canvas.translate(p1.0 - p0.0, p1.1 - p0.1);
+        self.redraw = true;
     }
 }

@@ -4,6 +4,7 @@ use rustc_hash::FxHashMap;
 // mod factorio;
 mod state;
 mod ui;
+mod utils;
 
 fn main() {
     ui::start(1000, 800, "SupervisoRS", true, App::default());
@@ -12,138 +13,15 @@ fn main() {
 struct App {
     nodes: FxHashMap<NodeId, Node>,
     connections: Vec<Connection>,
+    dragging: bool,
 }
 
 impl Default for App {
     fn default() -> Self {
-        let mut nodes = FxHashMap::default();
-        nodes.insert(
-            NodeId(0),
-            Node {
-                id: NodeId(0),
-                x: 100.0,
-                y: 100.0,
-                inputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(0)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(0)),
-                        rate: 1.0,
-                    },
-                ],
-                outputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(1)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(1)),
-                        rate: 1.0,
-                    },
-                ],
-
-                direction: Cardinal::East,
-            },
-        );
-        nodes.insert(
-            NodeId(1),
-            Node {
-                id: NodeId(1),
-                x: 200.0,
-                y: 200.0,
-
-                inputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(1)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(1)),
-                        rate: 1.0,
-                    },
-                ],
-                outputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(2)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(2)),
-                        rate: 1.0,
-                    },
-                ],
-
-                direction: Cardinal::South,
-            },
-        );
-        nodes.insert(
-            NodeId(2),
-            Node {
-                id: NodeId(2),
-                x: 300.0,
-                y: 300.0,
-
-                inputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(2)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(2)),
-                        rate: 1.0,
-                    },
-                ],
-                outputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(3)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(3)),
-                        rate: 1.0,
-                    },
-                ],
-
-                direction: Cardinal::West,
-            },
-        );
-        nodes.insert(
-            NodeId(3),
-            Node {
-                id: NodeId(3),
-                x: 400.0,
-                y: 400.0,
-
-                inputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(3)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(3)),
-                        rate: 1.0,
-                    },
-                ],
-                outputs: vec![
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Item(ItemId(0)),
-                        rate: 1.0,
-                    },
-                    InOutput {
-                        item_or_fluid: ItemOrFluidId::Fluid(FluidId(0)),
-                        rate: 1.0,
-                    },
-                ],
-
-                direction: Cardinal::North,
-            },
-        );
-
         Self {
-            nodes,
+            nodes: utils::demo_nodes(),
             connections: Vec::new(),
+            dragging: false,
         }
     }
 }
@@ -193,10 +71,37 @@ impl ui::App for App {
         }
     }
 
+    fn mouse_down(&mut self, _ctx: &mut ui::EventCtx, button: winit::event::MouseButton) {
+        if button == winit::event::MouseButton::Left {
+            self.dragging = true;
+        }
+    }
+
+    fn mouse_up(&mut self, _ctx: &mut ui::EventCtx, button: winit::event::MouseButton) {
+        if button == winit::event::MouseButton::Left {
+            self.dragging = false;
+        }
+    }
+
+    fn mouse_move(&mut self, ctx: &mut ui::EventCtx, x: f32, y: f32) {
+        if self.dragging {
+            ctx.translate(x, y);
+        }
+    }
     fn key_down(&mut self, ctx: &mut ui::EventCtx, key: winit::event::VirtualKeyCode) {
         if key == winit::event::VirtualKeyCode::Escape {
             ctx.exit();
         }
+    }
+
+    fn mouse_scroll(&mut self, ctx: &mut ui::EventCtx, delta: winit::event::MouseScrollDelta) {
+        let zoom = match delta {
+            winit::event::MouseScrollDelta::LineDelta(_x, y) => y,
+            winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
+                y, ..
+            }) => y as f32,
+        };
+        ctx.zoom_at_mouse(zoom);
     }
 }
 

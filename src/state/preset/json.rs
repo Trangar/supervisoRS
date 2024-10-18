@@ -5,7 +5,6 @@ mod not_used;
 use not_used::NotUsed;
 
 use rustc_hash::FxHashMap;
-use serde_json::ser;
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
@@ -344,8 +343,303 @@ pub struct Root<'a> {
     burner_generator: NotUsed, // TODO
     resource: NotUsed, // TODO
     module: NotUsed, // TODO
-    recipe: NotUsed, // TODO
+    recipe: FxHashMap<&'a str, Recipe<'a>>,
     technology: NotUsed, // TODO
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
+pub struct Recipe<'a> {
+    #[serde(rename = "type")]
+    pub recipe_type: &'a str,
+    pub name: &'a str,
+    #[serde(default)]
+    pub category: Option<&'a str>,
+    #[serde(default)]
+    pub subgroup: Option<&'a str>,
+    #[serde(default)]
+    pub order: Option<&'a str>,
+    #[serde(default)]
+    pub main_product: Option<&'a str>,
+    #[serde(default)]
+    pub ingredients: Option<VecOrMap<RecipeIngredient<'a>>>,
+    #[serde(default)]
+    pub result: Option<&'a str>,
+    #[serde(default, rename = "mod")]
+    pub mod_: Option<&'a str>,
+    #[serde(default)]
+    pub localized_name: Option<&'a str>,
+    #[serde(default)]
+    pub result_count: Option<usize>,
+    #[serde(default)]
+    pub results: Option<VecOrMap<RecipeResult<'a>>>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub allow_productivity: Option<bool>,
+    #[serde(default)]
+    pub hidden: Option<bool>,
+    pub always_show_made_in: bool,
+    #[serde(default)]
+    pub normal: Option<EnabledRecipeIngredients<'a>>,
+    #[serde(default)]
+    pub allow_decomposition: Option<bool>,
+    #[serde(default)]
+    pub allow_as_intermediate: Option<bool>,
+    #[serde(default)]
+    expensive: Option<EnabledRecipeIngredients<'a>>,
+
+    #[serde(default)]
+    requester_paste_multiplier: Option<usize>,
+    #[serde(default)]
+    always_show_products: bool,
+    #[serde(default)]
+    energy_required: Option<f32>,
+    #[serde(default)]
+    icon: NotUsed,
+    #[serde(default)]
+    icons: NotUsed,
+    #[serde(default)]
+    icon_size: NotUsed,
+    #[serde(default)]
+    icon_mipmaps: NotUsed,
+    #[serde(default)]
+    crafting_machine_tint: NotUsed,
+    #[serde(default)]
+    hide_from_stats: Option<bool>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
+pub struct EnabledRecipeIngredients<'a> {
+    pub ingredients: Vec<RecipeIngredient<'a>>,
+    #[serde(default)]
+    pub results: Option<Vec<RecipeResult<'a>>>,
+    #[serde(default)]
+    pub result: Option<&'a str>,
+    #[serde(default)]
+    pub result_count: Option<f32>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub allow_as_intermediate: Option<bool>,
+    #[serde(default)]
+    pub energy_required: Option<f32>,
+    #[serde(default)]
+    always_show_made_in: Option<bool>,
+    #[serde(default)]
+    hidden: Option<bool>,
+    #[serde(default)]
+    requester_paste_multiplier: Option<usize>,
+}
+
+#[derive(Debug)]
+pub struct RecipeIngredient<'a> {
+    pub ingredient_type: &'a str,
+    pub name: &'a str,
+    pub amount: f32,
+    pub catalyst_amount: Option<f32>,
+}
+
+impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<RecipeIngredient<'a>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        struct Visitor<'a> {
+            _marker: std::marker::PhantomData<&'a ()>,
+        }
+
+        impl<'a, 'de: 'a> serde::de::Visitor<'de> for Visitor<'a> {
+            type Value = RecipeIngredient<'a>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a map of recipe ingredients")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let item_name = seq.next_element::<&'de str>()?;
+                let item_amount = seq.next_element::<f32>()?;
+                Ok(RecipeIngredient {
+                    ingredient_type: "item",
+                    name: item_name.ok_or_else(|| serde::de::Error::missing_field("item name"))?,
+                    amount: item_amount
+                        .ok_or_else(|| serde::de::Error::missing_field("item amount"))?,
+                    catalyst_amount: None,
+                })
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut ingredient_type = None;
+                let mut name = None;
+                let mut amount = None;
+                let mut catalyst_amount = None;
+                while let Some(key) = map.next_key::<&'de str>()? {
+                    match key {
+                        "type" => {
+                            ingredient_type = Some(map.next_value()?);
+                        }
+                        "name" => {
+                            name = Some(map.next_value()?);
+                        }
+                        "amount" => {
+                            amount = Some(map.next_value()?);
+                        }
+                        "catalyst_amount" => {
+                            catalyst_amount = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(serde::de::Error::unknown_field(
+                                key,
+                                &["type", "name", "amount", "catalyst_amount"],
+                            ));
+                        }
+                    }
+                }
+                Ok(RecipeIngredient {
+                    ingredient_type: ingredient_type.unwrap_or("item"),
+                    name: name.ok_or_else(|| serde::de::Error::missing_field("name"))?,
+                    amount: amount.ok_or_else(|| serde::de::Error::missing_field("amount"))?,
+                    catalyst_amount,
+                })
+            }
+        }
+
+        deserializer.deserialize_any(Visitor {
+            _marker: std::marker::PhantomData,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct RecipeResult<'a> {
+    pub result_type: &'a str,
+    pub item: &'a str,
+    pub amount: Option<f32>,
+    pub probability: Option<f32>,
+    pub amount_min: Option<f32>,
+    pub amount_max: Option<f32>,
+    pub fluidbox_index: Option<usize>,
+    pub catalyst_amount: Option<f32>,
+}
+
+impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<RecipeResult<'a>, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        struct Visitor<'a> {
+            _marker: std::marker::PhantomData<&'a ()>,
+        }
+
+        impl<'a, 'de: 'a> serde::de::Visitor<'de> for Visitor<'a> {
+            type Value = RecipeResult<'a>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a map of recipe results")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let name = seq
+                    .next_element::<&'de str>()?
+                    .ok_or_else(|| serde::de::Error::missing_field("result seq name"))?;
+                let amount = seq
+                    .next_element::<f32>()?
+                    .ok_or_else(|| serde::de::Error::missing_field("result seq amount"))?;
+                Ok(RecipeResult {
+                    result_type: "item",
+                    item: name,
+                    amount: Some(amount),
+                    probability: None,
+                    fluidbox_index: None,
+                    catalyst_amount: None,
+                    amount_min: None,
+                    amount_max: None,
+                })
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut result_type = None;
+                let mut name = None;
+                let mut amount = None;
+                let mut fluidbox_index = None;
+                let mut catalyst_amount = None;
+                let mut probability = None;
+                let mut amount_min = None;
+                let mut amount_max = None;
+                while let Some(key) = map.next_key::<&'de str>()? {
+                    match key {
+                        "type" => {
+                            result_type = Some(map.next_value()?);
+                        }
+                        "name" => {
+                            name = Some(map.next_value()?);
+                        }
+                        "amount" => {
+                            amount = Some(map.next_value()?);
+                        }
+                        "fluidbox_index" => {
+                            fluidbox_index = Some(map.next_value()?);
+                        }
+                        "catalyst_amount" => {
+                            catalyst_amount = Some(map.next_value()?);
+                        }
+                        "probability" => {
+                            probability = Some(map.next_value()?);
+                        }
+                        "amount_min" => {
+                            amount_min = Some(map.next_value()?);
+                        }
+                        "amount_max" => {
+                            amount_max = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(serde::de::Error::unknown_field(
+                                key,
+                                &[
+                                    "type",
+                                    "name",
+                                    "amount",
+                                    "fluidbox_index",
+                                    "catalyst_amount",
+                                    "probability",
+                                    "amount_min",
+                                    "amount_max",
+                                ],
+                            ));
+                        }
+                    }
+                }
+
+                Ok(RecipeResult {
+                    result_type: result_type.unwrap_or("item"),
+                    item: name.ok_or_else(|| serde::de::Error::missing_field("name"))?,
+                    amount,
+                    fluidbox_index,
+                    catalyst_amount,
+                    probability,
+                    amount_min,
+                    amount_max,
+                })
+            }
+        }
+
+        deserializer.deserialize_any(Visitor {
+            _marker: std::marker::PhantomData,
+        })
+    }
 }
 
 #[derive(serde::Deserialize, Debug)]

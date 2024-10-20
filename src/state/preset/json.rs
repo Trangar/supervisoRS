@@ -343,7 +343,7 @@ pub struct Root<'a> {
     burner_generator: NotUsed, // TODO
     resource: NotUsed, // TODO
     module: NotUsed, // TODO
-    recipe: FxHashMap<&'a str, Recipe<'a>>,
+    pub recipe: FxHashMap<&'a str, Recipe<'a>>,
     technology: NotUsed, // TODO
 }
 
@@ -355,6 +355,8 @@ pub struct Recipe<'a> {
     pub name: &'a str,
     #[serde(default)]
     pub category: Option<&'a str>,
+    #[serde(default)]
+    pub group: Option<&'a str>,
     #[serde(default)]
     pub subgroup: Option<&'a str>,
     #[serde(default)]
@@ -368,7 +370,7 @@ pub struct Recipe<'a> {
     #[serde(default, rename = "mod")]
     pub mod_: Option<&'a str>,
     #[serde(default)]
-    pub localized_name: Option<&'a str>,
+    pub hide_from_player_crafting: Option<bool>,
     #[serde(default)]
     pub result_count: Option<usize>,
     #[serde(default)]
@@ -387,8 +389,22 @@ pub struct Recipe<'a> {
     #[serde(default)]
     pub allow_as_intermediate: Option<bool>,
     #[serde(default)]
-    expensive: Option<EnabledRecipeIngredients<'a>>,
+    pub show_amount_in_title: Option<bool>,
+    #[serde(default)]
+    pub flags: Option<VecOrMap<&'a str>>,
 
+    #[serde(default)]
+    localised_name: NotUsed,
+    #[serde(default)]
+    localized_name: NotUsed,
+    #[serde(default)]
+    localized_description: NotUsed,
+    #[serde(default)]
+    localised_description: NotUsed,
+    #[serde(default)]
+    expensive: Option<EnabledRecipeIngredients<'a>>,
+    #[serde(default)]
+    emissions_multiplier: Option<f32>,
     #[serde(default)]
     requester_paste_multiplier: Option<usize>,
     #[serde(default)]
@@ -407,12 +423,16 @@ pub struct Recipe<'a> {
     crafting_machine_tint: NotUsed,
     #[serde(default)]
     hide_from_stats: Option<bool>,
+    #[serde(default)]
+    allow_intermediates: Option<bool>,
 }
 
 #[derive(serde::Deserialize, Debug)]
 #[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
 pub struct EnabledRecipeIngredients<'a> {
     pub ingredients: Vec<RecipeIngredient<'a>>,
+    #[serde(default)]
+    pub allow_intermediates: Option<bool>,
     #[serde(default)]
     pub results: Option<Vec<RecipeResult<'a>>>,
     #[serde(default)]
@@ -422,15 +442,25 @@ pub struct EnabledRecipeIngredients<'a> {
     #[serde(default)]
     pub enabled: Option<bool>,
     #[serde(default)]
+    pub allow_decomposition: Option<bool>,
+    #[serde(default)]
     pub allow_as_intermediate: Option<bool>,
     #[serde(default)]
     pub energy_required: Option<f32>,
+    #[serde(default)]
+    pub show_amount_in_title: Option<bool>,
+    #[serde(default)]
+    pub main_product: Option<&'a str>,
     #[serde(default)]
     always_show_made_in: Option<bool>,
     #[serde(default)]
     hidden: Option<bool>,
     #[serde(default)]
     requester_paste_multiplier: Option<usize>,
+    #[serde(default)]
+    always_show_products: Option<bool>,
+    #[serde(default)]
+    hide_from_player_crafting: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -439,6 +469,8 @@ pub struct RecipeIngredient<'a> {
     pub name: &'a str,
     pub amount: f32,
     pub catalyst_amount: Option<f32>,
+    pub minimum_temperature: Option<f32>,
+    pub maximum_temperature: Option<f32>,
 }
 
 impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
@@ -469,6 +501,8 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
                     amount: item_amount
                         .ok_or_else(|| serde::de::Error::missing_field("item amount"))?,
                     catalyst_amount: None,
+                    minimum_temperature: None,
+                    maximum_temperature: None,
                 })
             }
 
@@ -480,6 +514,8 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
                 let mut name = None;
                 let mut amount = None;
                 let mut catalyst_amount = None;
+                let mut minimum_temperature = None;
+                let mut maximum_temperature = None;
                 while let Some(key) = map.next_key::<&'de str>()? {
                     match key {
                         "type" => {
@@ -494,10 +530,23 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
                         "catalyst_amount" => {
                             catalyst_amount = Some(map.next_value()?);
                         }
+                        "minimum_temperature" => {
+                            minimum_temperature = Some(map.next_value()?);
+                        }
+                        "maximum_temperature" => {
+                            maximum_temperature = Some(map.next_value()?);
+                        }
                         _ => {
                             return Err(serde::de::Error::unknown_field(
                                 key,
-                                &["type", "name", "amount", "catalyst_amount"],
+                                &[
+                                    "type",
+                                    "name",
+                                    "amount",
+                                    "catalyst_amount",
+                                    "minimum_temperature",
+                                    "maximum_temperature",
+                                ],
                             ));
                         }
                     }
@@ -507,6 +556,8 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeIngredient<'a> {
                     name: name.ok_or_else(|| serde::de::Error::missing_field("name"))?,
                     amount: amount.ok_or_else(|| serde::de::Error::missing_field("amount"))?,
                     catalyst_amount,
+                    minimum_temperature,
+                    maximum_temperature,
                 })
             }
         }
@@ -527,6 +578,7 @@ pub struct RecipeResult<'a> {
     pub amount_max: Option<f32>,
     pub fluidbox_index: Option<usize>,
     pub catalyst_amount: Option<f32>,
+    pub temperature: Option<f32>,
 }
 
 impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
@@ -564,6 +616,7 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
                     catalyst_amount: None,
                     amount_min: None,
                     amount_max: None,
+                    temperature: None,
                 })
             }
 
@@ -579,6 +632,7 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
                 let mut probability = None;
                 let mut amount_min = None;
                 let mut amount_max = None;
+                let mut temperature = None;
                 while let Some(key) = map.next_key::<&'de str>()? {
                     match key {
                         "type" => {
@@ -605,6 +659,9 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
                         "amount_max" => {
                             amount_max = Some(map.next_value()?);
                         }
+                        "temperature" => {
+                            temperature = Some(map.next_value()?);
+                        }
                         _ => {
                             return Err(serde::de::Error::unknown_field(
                                 key,
@@ -617,6 +674,7 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
                                     "probability",
                                     "amount_min",
                                     "amount_max",
+                                    "temperature",
                                 ],
                             ));
                         }
@@ -632,6 +690,7 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
                     probability,
                     amount_min,
                     amount_max,
+                    temperature,
                 })
             }
         }
@@ -681,7 +740,7 @@ pub struct Item<'a> {
     #[serde(default)]
     place_as_tile: Option<NotUsed>,
     #[serde(default)]
-    fuel_value: Option<Unit<'a>>,
+    fuel_value: Option<Unit>,
     #[serde(default)]
     fuel_category: Option<&'a str>, // TODO: Enum "chemical"
     #[serde(default)]
@@ -739,9 +798,9 @@ pub struct Fluid<'a> {
     #[serde(default)]
     pub hidden: Option<bool>,
     #[serde(default)]
-    pub heat_capacity: Option<Unit<'a>>,
+    pub heat_capacity: Option<Unit>,
     #[serde(default)]
-    pub fuel_value: Option<Unit<'a>>,
+    pub fuel_value: Option<Unit>,
     #[serde(default)]
     pub order: Option<&'a str>,
     #[serde(default)]
@@ -773,7 +832,7 @@ pub struct Furnace<'a> {
     pub flags: VecOrMap<&'a str>,
     pub crafting_categories: VecOrMap<&'a str>,
     pub crafting_speed: f32,
-    pub energy_usage: Unit<'a>,
+    pub energy_usage: Unit,
     pub fast_replaceable_group: &'a str,
 
     #[serde(default)]
@@ -993,22 +1052,20 @@ pub struct FluidBox<'a> {
 }
 
 #[derive(Debug)]
-pub struct Unit<'a> {
+pub struct Unit {
     amount: f32,
-    unit_type: &'a str, // TOdO: enum "MJ"
+    unit_type: UnitType,
 }
 
-impl<'a, 'de: 'a> serde::de::Deserialize<'de> for Unit<'a> {
-    fn deserialize<D>(deserializer: D) -> Result<Unit<'a>, D::Error>
+impl<'de> serde::de::Deserialize<'de> for Unit {
+    fn deserialize<D>(deserializer: D) -> Result<Unit, D::Error>
     where
         D: serde::de::Deserializer<'de>,
     {
-        struct Visitor<'a> {
-            _marker: std::marker::PhantomData<&'a ()>,
-        }
+        struct Visitor;
 
-        impl<'a, 'de: 'a> serde::de::Visitor<'de> for Visitor<'a> {
-            type Value = Unit<'a>;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Unit;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a string unit")
@@ -1023,15 +1080,50 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for Unit<'a> {
                     .unwrap_or(v.len());
 
                 let amount = v[..idx].parse().map_err(serde::de::Error::custom)?;
-                let unit_type = v[idx..].trim();
+                let unit_type = v[idx..].parse().map_err(|_| {
+                    serde::de::Error::unknown_variant(&v[idx..].trim(), UnitType::all())
+                })?;
 
                 Ok(Unit { amount, unit_type })
             }
         }
 
-        deserializer.deserialize_str(Visitor {
-            _marker: std::marker::PhantomData,
-        })
+        deserializer.deserialize_str(Visitor)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnitType {
+    KJ,
+    MJ,
+    GJ,
+
+    W,
+    KW,
+    MW,
+    GW,
+}
+
+impl UnitType {
+    pub fn all() -> &'static [&'static str] {
+        &["kJ", "MJ", "GJ", "W", "kW", "MW", "GW"]
+    }
+}
+
+impl std::str::FromStr for UnitType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<UnitType, ()> {
+        match s.trim().to_uppercase().as_str() {
+            "KJ" => Ok(UnitType::KJ),
+            "MJ" => Ok(UnitType::MJ),
+            "GJ" => Ok(UnitType::GJ),
+            "W" => Ok(UnitType::W),
+            "KW" => Ok(UnitType::KW),
+            "MW" => Ok(UnitType::MW),
+            "GW" => Ok(UnitType::GW),
+            _ => Err(()),
+        }
     }
 }
 

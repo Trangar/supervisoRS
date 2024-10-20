@@ -9,14 +9,16 @@ mod ui;
 mod utils;
 
 fn main() {
-    // let factorio_path = factorio::find_factorio_install_dir().unwrap();
-    // let config_dir = factorio::find_factorio_config_dir().unwrap();
+    if !std::fs::exists("preset/k2se").unwrap_or(false) {
+        let factorio_path = factorio::find_factorio_install_dir().unwrap();
+        let config_dir = factorio::find_factorio_config_dir().unwrap();
 
-    // factorio::export::export(factorio::export::ExportArgs {
-    //     mod_directory: &config_dir,
-    //     factorio_dir: &factorio_path,
-    //     output_dir: &std::env::current_dir().unwrap().join("preset").join("k2se"),
-    // });
+        factorio::export::export(factorio::export::ExportArgs {
+            mod_directory: &config_dir,
+            factorio_dir: &factorio_path,
+            output_dir: &std::env::current_dir().unwrap().join("preset").join("k2se"),
+        });
+    }
     let preset = Preset::load("k2se");
     // ui::start(1000, 800, "SupervisoRS", true, App::default());
 }

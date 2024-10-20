@@ -27,8 +27,9 @@ impl Preset {
             data.bytes().len() as f64 / 1024.0 / 1024.0,
             start.elapsed()
         );
-
-        // dbg!(deserialized);
+        println!("  Found {} recipes", deserialized.recipe.len());
+        println!("  Found {} items", deserialized.item.len());
+        println!("  Found {} fluids", deserialized.fluid.len());
 
         todo!();
     }

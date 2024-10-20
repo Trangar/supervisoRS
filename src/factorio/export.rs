@@ -8,14 +8,19 @@ pub struct ExportArgs<'a> {
 }
 
 pub fn export(args: ExportArgs) {
-    let factorio_exe = dbg!(args.factorio_dir.join("factorio.exe"));
+    let factorio_exe = if cfg!(target_os = "windows") {
+        args.factorio_dir.join("factorio.exe")
+    } else {
+        args.factorio_dir.join("factorio")
+    };
+    std::fs::create_dir_all(args.output_dir).unwrap();
 
     for cmd in [
         "--dump-data",
         "--dump-icon-sprites",
         "--dump-prototype-locale",
     ] {
-        println!("> Factorio.exe {cmd}");
+        println!("> {factorio_exe:?} {cmd}");
         let process = std::process::Command::new(&factorio_exe)
             .arg(cmd)
             .stdout(std::process::Stdio::piped())
@@ -39,7 +44,18 @@ pub fn export(args: ExportArgs) {
             }
         }
 
-        dbg!(output);
+        std::fs::write(
+            args.output_dir
+                .join(format!("{}.stdout.log", cmd.trim_matches('-'))),
+            &output.stdout,
+        )
+        .unwrap();
+        std::fs::write(
+            args.output_dir
+                .join(format!("{}.stderr.log", cmd.trim_matches('-'))),
+            &output.stderr,
+        )
+        .unwrap();
     }
 
     println!(

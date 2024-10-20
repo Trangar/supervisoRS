@@ -2,6 +2,8 @@
 
 mod not_used;
 
+use std::ops::Deref;
+
 use not_used::NotUsed;
 
 use rustc_hash::FxHashMap;
@@ -10,6 +12,7 @@ use rustc_hash::FxHashMap;
 #[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
 pub struct Root<'a> {
     pub item: FxHashMap<&'a str, Item<'a>>,
+    pub capsule: FxHashMap<&'a str, Capsule<'a>>,
     pub fluid: FxHashMap<&'a str, Fluid<'a>>,
     pub furnace: FxHashMap<&'a str, Furnace<'a>>,
     #[serde(rename = "transport-belt")]
@@ -177,7 +180,6 @@ pub struct Root<'a> {
     construction_robot: NotUsed,
     #[serde(rename = "logistic-robot")]
     logistic_robot: NotUsed,
-    capsule: NotUsed,
     #[serde(rename = "repair-tool")]
     repair_tool: NotUsed,
     #[serde(rename = "copy-paste-tool")]
@@ -342,9 +344,63 @@ pub struct Root<'a> {
     #[serde(rename = "burner-generator")]
     burner_generator: NotUsed, // TODO
     resource: NotUsed, // TODO
-    module: NotUsed, // TODO
+    pub module: FxHashMap<&'a str, Module<'a>>,
     pub recipe: FxHashMap<&'a str, Recipe<'a>>,
     technology: NotUsed, // TODO
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(deny_unknown_fields, bound(deserialize = "'de: 'a"))]
+pub struct Module<'a> {
+    #[serde(rename = "type")]
+    pub module_type: &'a str,
+    pub name: &'a str,
+    pub subgroup: &'a str,
+    pub category: &'a str, // TODO: Enum
+    pub tier: u8,
+    pub order: &'a str,
+    pub stack_size: usize,
+    pub effect: ModuleEffect,
+    #[serde(default)]
+    pub limitation: Option<Vec<&'a str>>,
+    #[serde(default)]
+    pub limitation_blacklist: Option<Vec<&'a str>>,
+
+    #[serde(default)]
+    limitation_message_key: Option<&'a str>,
+    #[serde(default)]
+    localised_name: NotUsed,
+    #[serde(default)]
+    localised_description: NotUsed,
+    #[serde(default)]
+    icon: NotUsed,
+    #[serde(default)]
+    icon_size: NotUsed,
+    #[serde(default)]
+    icon_mipmaps: NotUsed,
+    #[serde(default)]
+    beacon_tint: NotUsed,
+    #[serde(default)]
+    art_style: NotUsed,
+    #[serde(default)]
+    requires_beacon_alt_mode: NotUsed,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleEffect {
+    pub consumption: ModuleEffectBonus,
+    pub pollution: ModuleEffectBonus,
+    #[serde(default)]
+    pub speed: Option<ModuleEffectBonus>,
+    #[serde(default)]
+    pub productivity: Option<ModuleEffectBonus>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct ModuleEffectBonus {
+    pub bonus: f32,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -372,7 +428,7 @@ pub struct Recipe<'a> {
     #[serde(default)]
     pub hide_from_player_crafting: Option<bool>,
     #[serde(default)]
-    pub result_count: Option<usize>,
+    pub result_count: Option<f32>,
     #[serde(default)]
     pub results: Option<VecOrMap<RecipeResult<'a>>>,
     #[serde(default)]
@@ -576,7 +632,7 @@ pub struct RecipeResult<'a> {
     pub probability: Option<f32>,
     pub amount_min: Option<f32>,
     pub amount_max: Option<f32>,
-    pub fluidbox_index: Option<usize>,
+    pub fluidbox_index: Option<u8>,
     pub catalyst_amount: Option<f32>,
     pub temperature: Option<f32>,
 }
@@ -699,6 +755,13 @@ impl<'a, 'de: 'a> serde::de::Deserialize<'de> for RecipeResult<'a> {
             _marker: std::marker::PhantomData,
         })
     }
+}
+#[derive(serde::Deserialize, Debug)]
+#[serde(bound(deserialize = "'de: 'a"))]
+pub struct Capsule<'a> {
+    #[serde(rename = "type")]
+    pub capsule_type: &'a str,
+    pub name: &'a str,
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -1148,6 +1211,14 @@ pub struct Icon<'a> {
 
 #[derive(Debug)]
 pub struct VecOrMap<T>(pub Vec<T>);
+
+impl<T> Deref for VecOrMap<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<'de, T> serde::de::Deserialize<'de> for VecOrMap<T>
 where

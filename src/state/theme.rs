@@ -80,9 +80,9 @@ impl Theme {
         }
     }
 
-    // pub fn layer_color(&self, layer: usize) -> Color {
-    //     self.layer_direction.apply(self.background.color, layer)
-    // }
+    pub fn layer_color(&self, layer: usize) -> Color {
+        self.layer_direction.apply(self.background.color, layer)
+    }
 }
 
 impl serde::ser::Serialize for Theme {

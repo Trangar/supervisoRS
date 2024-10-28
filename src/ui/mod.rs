@@ -1,7 +1,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 use std::num::NonZeroU32;
 
-use femtovg::{renderer::OpenGl, Color};
+use femtovg::renderer::OpenGl;
 use glutin::{
     config::{ConfigTemplateBuilder, GlConfig},
     context::{ContextApi, ContextAttributesBuilder},
@@ -19,7 +19,7 @@ use winit::{
 
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
 pub trait App {
-    fn draw(&mut self, _canvas: &mut Canvas) {}
+    fn draw(&mut self, canvas: &mut Canvas, ctx: DrawCtx);
     fn resize(&mut self, _ctx: &mut EventCtx, _width: u32, _height: u32) {}
     fn key_down(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
     fn key_up(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
@@ -161,10 +161,12 @@ pub fn start(
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
+        let (x, y) = rel_mouse(mousex, mousey, &canvas);
+
         let mut ctx = EventCtx {
             canvas: &mut canvas,
-            mousex,
-            mousey,
+            mousex: x,
+            mousey: y,
             redraw: false,
             control_flow,
         };
@@ -203,7 +205,9 @@ pub fn start(
                     mousex = position.x as f32;
                     mousey = position.y as f32;
 
-                    app.mouse_move(&mut ctx, mousex, mousey);
+                    let (x, y) = rel_mouse(mousex, mousey, ctx.canvas);
+
+                    app.mouse_move(&mut ctx, x, y);
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *state == winit::event::ElementState::Pressed {
@@ -228,7 +232,14 @@ pub fn start(
                 ctx.canvas
                     .set_size(size.width, size.height, dpi_factor as f32);
 
-                app.draw(ctx.canvas);
+                let (x, y) = rel_mouse(mousex, mousey, ctx.canvas);
+
+                let draw_ctx = DrawCtx {
+                    mousex: x,
+                    mousey: y,
+                };
+
+                app.draw(ctx.canvas, draw_ctx);
 
                 ctx.canvas.save_with(|canvas| {
                     canvas.reset();
@@ -246,6 +257,15 @@ pub fn start(
             window.request_redraw();
         }
     });
+}
+
+fn rel_mouse(x: f32, y: f32, canvas: &Canvas) -> (f32, f32) {
+    canvas.transform().inversed().transform_point(x, y)
+}
+
+pub struct DrawCtx {
+    pub mousex: f32,
+    pub mousey: f32,
 }
 
 pub struct EventCtx<'a> {
@@ -284,6 +304,10 @@ impl EventCtx<'_> {
         let p1 = self.canvas.transform().inversed().transform_point(x, y);
 
         self.canvas.translate(p1.0 - p0.0, p1.1 - p0.1);
+        self.redraw = true;
+    }
+
+    pub fn redraw(&mut self) {
         self.redraw = true;
     }
 }

@@ -3,37 +3,73 @@ mod json;
 
 use id_generator::{FrozenIdGenerator, IdGenerator};
 use instant::Instant;
-use itertools::Itertools;
 use json::{Flags, Unit};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::ser::SerializeSeq;
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
 pub struct Preset {
     pub name: String,
-    #[serde(serialize_with = "fxhashmap_values")]
+    #[serde(with = "fxhashmap_values")]
     pub recipes: FxHashMap<RecipeId, Recipe>,
-    #[serde(serialize_with = "fxhashmap_values")]
+    #[serde(with = "fxhashmap_values")]
     pub items: FxHashMap<ItemId, Item>,
-    #[serde(serialize_with = "fxhashmap_values")]
+    #[serde(with = "fxhashmap_values")]
     pub fluids: FxHashMap<FluidId, Fluid>,
 }
 
-fn fxhashmap_values<S, K, V>(map: &FxHashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-    K: serde::Serialize + Ord + Copy,
-    V: serde::Serialize,
-{
-    let mut seq = serializer.serialize_seq(Some(map.len()))?;
-    for (_, value) in map.iter().sorted_by_key(|(key, _)| *key) {
-        seq.serialize_element(value)?;
+mod fxhashmap_values {
+    use itertools::Itertools;
+    use rustc_hash::FxHashMap;
+    use serde::{ser::SerializeSeq, Deserialize};
+
+    pub fn serialize<S, K, V>(map: &FxHashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+        K: serde::Serialize + Ord + Copy,
+        V: serde::Serialize,
+    {
+        let mut seq = serializer.serialize_seq(Some(map.len()))?;
+        for (_, value) in map.iter().sorted_by_key(|(key, _)| *key) {
+            seq.serialize_element(value)?;
+        }
+        seq.end()
     }
-    seq.end()
+
+    pub fn deserialize<'de, S, K, V>(deserializer: S) -> Result<FxHashMap<K, V>, S::Error>
+    where
+        S: serde::de::Deserializer<'de>,
+        K: serde::de::Deserialize<'de> + std::hash::Hash + Eq,
+        V: serde::de::Deserialize<'de> + Keyable<K>,
+    {
+        let values = Vec::<V>::deserialize(deserializer)?;
+        let mut map = FxHashMap::default();
+        for value in values {
+            let key = value.key();
+            map.insert(key, value);
+        }
+        Ok(map)
+    }
+
+    pub trait Keyable<K> {
+        fn key(&self) -> K;
+    }
 }
 
 impl Preset {
     pub fn load(name: &str) -> Self {
+        let json_file_name = format!("preset/{}/preset.json", name);
+
+        if std::fs::exists(&json_file_name).unwrap_or(false) {
+            let data =
+                std::fs::read_to_string(&json_file_name).expect("Failed to read preset.json");
+            match serde_json::from_str(&data) {
+                Ok(preset) => return preset,
+                Err(e) => {
+                    println!("Failed to deserialize preset.json: {:?}", e);
+                }
+            }
+        }
+
         let start = Instant::now();
         let path = format!("preset/{}/script-output/data-raw-dump.json", name);
         let data = std::fs::read_to_string(path).expect("Failed to read data-raw-dump.json");
@@ -198,7 +234,7 @@ impl Preset {
         }
 
         std::fs::write(
-            format!("preset/{}/preset.json", name),
+            json_file_name,
             serde_json::to_string_pretty(&preset).unwrap(),
         )
         .unwrap();
@@ -210,8 +246,19 @@ impl Preset {
 macro_rules! id {
     ($name:ident) => {
         #[derive(
-            Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, Debug,
+            Copy,
+            Clone,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash,
+            Default,
+            serde::Serialize,
+            serde::Deserialize,
+            Debug,
         )]
+        #[serde(transparent)]
         pub struct $name(u32);
 
         impl From<u32> for $name {
@@ -226,20 +273,26 @@ id!(RecipeId);
 id!(ItemId);
 id!(FluidId);
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Recipe {
     pub id: RecipeId,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub subgroup: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub order: Option<String>,
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
+}
+
+impl fxhashmap_values::Keyable<RecipeId> for Recipe {
+    fn key(&self) -> RecipeId {
+        self.id
+    }
 }
 
 impl Recipe {
@@ -282,15 +335,15 @@ impl Recipe {
     // }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Input {
     pub item_or_fluid: ItemOrFluidId,
     pub rate: f32,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub catalyst_amount: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub minimum_temperature: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub maximum_temperature: Option<f32>,
 }
 
@@ -316,22 +369,22 @@ impl Input {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Output {
     pub item_or_fluid: ItemOrFluidId,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub amount: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub probability: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub amount_min: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub amount_max: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub fluidbox_index: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub catalyst_amount: Option<f32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub temperature: Option<f32>,
 }
 
@@ -360,7 +413,9 @@ impl Output {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum ItemOrFluidId {
     Item(ItemId),
     Fluid(FluidId),
@@ -372,37 +427,49 @@ impl Default for ItemOrFluidId {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Item {
     pub id: ItemId,
     pub name: String,
     pub stack_size: usize,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub subgroup: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub category: Option<String>,
-    #[serde(skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false", default)]
     pub hidden: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub order: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub rocket_launch_product: Option<(ItemId, usize)>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub fuel_category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub fuel_value: Option<Unit>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub flags: Option<Vec<Flags>>,
+}
+
+impl fxhashmap_values::Keyable<ItemId> for Item {
+    fn key(&self) -> ItemId {
+        self.id
+    }
 }
 
 fn is_false(b: &bool) -> bool {
     !*b
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Fluid {
     pub id: FluidId,
     pub name: String,
+}
+
+impl fxhashmap_values::Keyable<FluidId> for Fluid {
+    fn key(&self) -> FluidId {
+        self.id
+    }
 }

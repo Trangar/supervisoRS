@@ -31,7 +31,7 @@ pub struct FrozenIdGenerator<'a, T> {
     _phantom: PhantomData<T>,
 }
 
-impl<'a, T> FrozenIdGenerator<'a, T>
+impl<T> FrozenIdGenerator<'_, T>
 where
     T: From<u32>,
 {

@@ -11,7 +11,7 @@ impl<'de> serde::de::Deserialize<'de> for IntOrInfinite {
     {
         struct Visitor;
 
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = IntOrInfinite;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

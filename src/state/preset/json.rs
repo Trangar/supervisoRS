@@ -15,7 +15,7 @@ pub use int_or_infinite::IntOrInfinite;
 pub use prerequisites::Prerequisites;
 pub use recipe_ingredient::RecipeIngredient;
 pub use recipe_result::RecipeResult;
-pub use unit::{Unit, UnitType};
+pub use unit::Unit;
 pub use vec_or_map::VecOrMap;
 
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -163,9 +163,8 @@ pub struct Recipe<'a> {
     pub main_product: Option<&'a str>,
     pub ingredients: Option<VecOrMap<RecipeIngredient<'a>>>,
 
-    pub result: Option<&'a str>,
-    pub result_count: Option<f32>,
-
+    // pub result: Option<&'a str>,
+    // pub result_count: Option<f32>,
     pub results: Option<VecOrMap<RecipeResult<'a>>>,
 
     pub mod_: Option<&'a str>,
@@ -174,7 +173,6 @@ pub struct Recipe<'a> {
     pub allow_productivity: Option<bool>,
     pub hidden: Option<bool>,
     pub always_show_made_in: Option<bool>,
-    pub normal: Option<EnabledRecipeIngredients<'a>>,
     pub allow_decomposition: Option<bool>,
     pub allow_as_intermediate: Option<bool>,
     pub allow_intermediates: Option<bool>,

@@ -5,9 +5,8 @@ use id_generator::{FrozenIdGenerator, IdGenerator};
 use instant::Instant;
 use itertools::Itertools;
 use json::{Flags, Unit};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::ser::SerializeSeq;
-use std::path::PathBuf;
 
 #[derive(Debug, serde::Serialize)]
 pub struct Preset {
@@ -51,6 +50,45 @@ impl Preset {
         println!("  Found {} items", deserialized.item.len());
         println!("  Found {} fluids", deserialized.fluid.len());
 
+        let names = deserialized
+            .recipe
+            .values()
+            .flat_map(|r| r.remaining.keys())
+            .collect::<FxHashSet<_>>();
+        println!("Recipe remaining keys: {:?}", names);
+
+        let names = deserialized
+            .recipe
+            .values()
+            .flat_map(|r| r.ingredients.iter())
+            .flat_map(|i| i.0.iter())
+            .flat_map(|i| i.remaining.keys())
+            .collect::<FxHashSet<_>>();
+        println!("  ingredient remaining keys: {:?}", names);
+
+        let names = deserialized
+            .recipe
+            .values()
+            .flat_map(|r| r.results.iter())
+            .flat_map(|r| r.0.iter())
+            .flat_map(|r| r.remaining.keys())
+            .collect::<FxHashSet<_>>();
+        println!("  result remaining keys: {:?}", names);
+
+        let names = deserialized
+            .item
+            .values()
+            .flat_map(|r| r.remaining.keys())
+            .collect::<FxHashSet<_>>();
+        println!("Item remaining keys: {:?}", names);
+
+        let names = deserialized
+            .fluid
+            .values()
+            .flat_map(|r| r.remaining.keys())
+            .collect::<FxHashSet<_>>();
+        println!("Fluid remaining keys: {:?}", names);
+
         let mut preset = Preset {
             name: name.to_string(),
             recipes: FxHashMap::default(),
@@ -90,9 +128,9 @@ impl Preset {
                 fluid_ids.add(result.name);
             }
         }
-        for result in deserialized.recipe.values().filter_map(|r| r.result) {
-            item_ids.add(result);
-        }
+        // for result in deserialized.recipe.values().filter_map(|r| r.result) {
+        //     item_ids.add(result);
+        // }
 
         let item_ids = item_ids.freeze();
         let fluid_ids = fluid_ids.freeze();
@@ -141,7 +179,7 @@ impl Preset {
             );
         }
 
-        for (fluid_name, fluid) in deserialized.fluid {
+        for (fluid_name, _fluid) in deserialized.fluid {
             let id = fluid_ids.get(fluid_name);
 
             if preset.fluids.contains_key(&id) {
@@ -228,42 +266,20 @@ impl Recipe {
                 ));
             }
         }
-        if let Some(result_name) = &raw.result {
-            result.outputs.push(Output::from_raw_name_amount(
-                result_name,
-                raw.result_count.unwrap(),
-                item_ids,
-            ));
-        }
         if let Some(outputs) = &raw.results {
             for output in outputs.iter() {
                 result
                     .outputs
-                    .push(Output::from_raw_recipe_result(output, item_ids, fluid_ids));
+                    .push(Output::new(output, item_ids, fluid_ids));
             }
         }
-        if let Some(normal) = &raw.normal {
-            if !normal.ingredients.is_empty() {
-                for ingredient in normal.ingredients.iter() {
-                    result.inputs.push(Input::from_raw_recipe_ingredient(
-                        ingredient, item_ids, fluid_ids,
-                    ));
-                }
-            }
-            if let Some(results) = &normal.results {
-                for output in results.iter() {
-                    result
-                        .outputs
-                        .push(Output::from_raw_recipe_result(output, item_ids, fluid_ids));
-                }
-            }
-        }
+
         result
     }
 
-    pub fn icon(&self, preset_name: &str) -> PathBuf {
-        PathBuf::from(format!("preset/{}/recipe/{}.png", preset_name, self.name))
-    }
+    // pub fn icon(&self, preset_name: &str) -> PathBuf {
+    //     PathBuf::from(format!("preset/{}/recipe/{}.png", preset_name, self.name))
+    // }
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -320,7 +336,7 @@ pub struct Output {
 }
 
 impl Output {
-    pub fn from_raw_recipe_result(
+    pub fn new(
         raw: &json::RecipeResult,
         item_ids: &FrozenIdGenerator<ItemId>,
         fluid_ids: &FrozenIdGenerator<FluidId>,
@@ -340,14 +356,6 @@ impl Output {
             amount_max: raw.amount_max,
             fluidbox_index: raw.fluidbox_index,
             temperature: raw.temperature,
-        }
-    }
-
-    fn from_raw_name_amount(name: &str, amount: f32, item_ids: &FrozenIdGenerator<ItemId>) -> Self {
-        Self {
-            item_or_fluid: ItemOrFluidId::Item(item_ids.get(name)),
-            amount: Some(amount),
-            ..Default::default()
         }
     }
 }
@@ -393,20 +401,8 @@ fn is_false(b: &bool) -> bool {
     !*b
 }
 
-// impl Item {
-//     pub fn icon(&self, preset_name: &str) -> PathBuf {
-//         PathBuf::from(format!("preset/{}/item/{}.png", preset_name, self.name))
-//     }
-// }
-
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct Fluid {
     pub id: FluidId,
     pub name: String,
 }
-
-// impl Fluid {
-//     pub fn icon(&self, preset_name: &str) -> PathBuf {
-//         PathBuf::from(format!("preset/{}/fluid/{}.png", preset_name, self.name))
-//     }
-// }

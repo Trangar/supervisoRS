@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
+use rustc_hash::FxHashSet;
+
 #[derive(Default)]
 pub struct IdGenerator<'a, T> {
-    names: Vec<&'a str>,
+    names: FxHashSet<&'a str>,
     _phantom: PhantomData<T>,
 }
 
@@ -11,19 +13,16 @@ where
     T: From<u32>,
 {
     pub fn add(&mut self, name: &'a str) {
-        match self.names.binary_search(&name) {
-            Ok(_) => {
-                panic!("Name already exists: {}", name);
-            }
-            Err(pos) => self.names.insert(pos, name),
-        }
+        self.names.insert(name);
     }
 
     pub fn freeze(self) -> FrozenIdGenerator<'a, T> {
-        FrozenIdGenerator {
-            names: self.names,
+        let mut generator = FrozenIdGenerator {
+            names: self.names.into_iter().collect(),
             _phantom: PhantomData,
-        }
+        };
+        generator.names.sort();
+        generator
     }
 }
 

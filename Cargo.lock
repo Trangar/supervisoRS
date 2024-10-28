@@ -964,6 +964,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1784,7 +1793,7 @@ checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
 
 [[package]]
 name = "supervisoRS"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "dark-light",
  "femtovg",
@@ -1793,6 +1802,7 @@ dependencies = [
  "glutin-winit",
  "heck",
  "instant",
+ "itertools",
  "noisy_float",
  "platform-dirs",
  "raw-window-handle",
@@ -1800,9 +1810,19 @@ dependencies = [
  "serde",
  "serde_json",
  "shellexpand",
+ "supervisors-derive",
  "sysinfo",
  "toml",
  "winit",
+]
+
+[[package]]
+name = "supervisors-derive"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.79",
 ]
 
 [[package]]

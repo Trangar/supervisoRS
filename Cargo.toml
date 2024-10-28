@@ -1,6 +1,6 @@
 [package]
 name = "supervisoRS"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 
 [dependencies]
@@ -21,3 +21,6 @@ shellexpand = "3.1.0"
 sysinfo = "0.32.0"
 toml = "0.8.19"
 winit = "0.28.7"
+
+supervisors-derive = { path = "libs/derive" }
+itertools = "0.13.0"

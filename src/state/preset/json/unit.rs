@@ -41,9 +41,11 @@ impl<'de> serde::de::Deserialize<'de> for Unit {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum UnitType {
+    J,
     KJ,
     MJ,
     GJ,
+    YJ,
 
     W,
     KW,
@@ -53,7 +55,7 @@ pub enum UnitType {
 
 impl UnitType {
     pub fn all() -> &'static [&'static str] {
-        &["kJ", "MJ", "GJ", "W", "kW", "MW", "GW"]
+        &["J", "kJ", "MJ", "GJ", "YJ", "W", "kW", "MW", "GW"]
     }
 }
 
@@ -62,9 +64,11 @@ impl std::str::FromStr for UnitType {
 
     fn from_str(s: &str) -> Result<UnitType, ()> {
         match s.trim().to_uppercase().as_str() {
+            "J" => Ok(UnitType::J),
             "KJ" => Ok(UnitType::KJ),
             "MJ" => Ok(UnitType::MJ),
             "GJ" => Ok(UnitType::GJ),
+            "YJ" => Ok(UnitType::YJ),
             "W" => Ok(UnitType::W),
             "KW" => Ok(UnitType::KW),
             "MW" => Ok(UnitType::MW),

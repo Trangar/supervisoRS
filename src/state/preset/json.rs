@@ -191,7 +191,7 @@ pub struct EnergySource<'a> {
     pub ty: &'a str,
     pub effectivity: Option<f32>,
     pub fuel_inventory_size: Option<f32>,
-    pub emissions_per_minute: Option<f32>,
+    pub emissions_per_minute: Option<FxHashMap<&'a str, f32>>,
     pub max_temperature: Option<f32>,
     pub min_temperature: Option<f32>,
     pub specific_heat: Option<Unit>,
@@ -251,21 +251,94 @@ pub struct Module<'a> {
 
 #[derive(Debug, CustomDeserialize)]
 pub struct ModuleEffect<'a> {
-    pub consumption: ModuleEffectBonus<'a>,
-    pub pollution: ModuleEffectBonus<'a>,
+    pub consumption: Option<ModuleEffectBonus<'a>>,
     pub speed: Option<ModuleEffectBonus<'a>>,
     pub productivity: Option<ModuleEffectBonus<'a>>,
+    pub quality: Option<ModuleEffectBonus<'a>>,
+    pub pollution: Option<ModuleEffectBonus<'a>>,
 
     #[remaining]
     pub remaining: FxHashMap<&'a str, serde_json::Value>,
 }
 
-#[derive(Debug, CustomDeserialize)]
+#[derive(Debug)]
 pub struct ModuleEffectBonus<'a> {
     pub bonus: f32,
 
-    #[remaining]
     pub remaining: FxHashMap<&'a str, serde_json::Value>,
+}
+
+impl<'a, 'de: 'a> serde::de::Deserialize<'de> for ModuleEffectBonus<'a> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        struct StructVisitor<'a>(std::marker::PhantomData<&'a ()>);
+        impl<'de: 'a, 'a> serde::de::Visitor<'de> for StructVisitor<'a> {
+            type Value = ModuleEffectBonus<'a>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct ModuleEffectBonus or f32")
+            }
+
+            fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(ModuleEffectBonus {
+                    bonus: v as f32,
+                    remaining: FxHashMap::default(),
+                })
+            }
+
+            fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(ModuleEffectBonus {
+                    bonus: v,
+                    remaining: FxHashMap::default(),
+                })
+            }
+            fn visit_map<V>(self, mut map: V) -> Result<ModuleEffectBonus<'a>, V::Error>
+            where
+                V: serde::de::MapAccess<'de>,
+            {
+                let mut remaining = FxHashMap::default();
+                let mut missing_fields = FxHashSet::<&'a str>::default();
+                let mut bonus = None;
+                missing_fields.insert("bonus");
+                while let Some(key) = map.next_key::<&str>()? {
+                    match key {
+                        "bonus" => {
+                            bonus = Some(map.next_value()?);
+                            missing_fields.remove("bonus");
+                        }
+                        _ => {
+                            remaining.insert(key, map.next_value()?);
+                        }
+                    }
+                }
+                if !missing_fields.is_empty() {
+                    return Err(serde::de::Error::custom( format!(
+                        "Missing fields {0} in struct {1}, should {2} be made optional? Keys in remaining: {3:?}",
+                        missing_fields
+                            .iter()
+                            .map(|s| format!("\'{0}\'", s))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        "ModuleEffectBonus",
+                        if missing_fields.len() == 1 { "this" } else { "these" },
+                        remaining.keys().collect::<Vec<_>>(),
+                    )));
+                }
+                Ok(ModuleEffectBonus {
+                    bonus: bonus.unwrap(),
+                    remaining,
+                })
+            }
+        }
+        deserializer.deserialize_any(StructVisitor::<'a>(std::marker::PhantomData))
+    }
 }
 
 #[derive(Debug, CustomDeserialize)]

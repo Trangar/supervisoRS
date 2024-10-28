@@ -15,82 +15,22 @@ mod ui;
 mod utils;
 
 fn main() {
-    const PRESET: &str = "py";
-    if !std::fs::exists(format!("preset/{PRESET}")).unwrap_or(false) {
-        let factorio_path =
-            factorio::find_factorio_install_dir().expect("Could not locate factorio dir");
+    const PRESET_NAME: &str = "space_age";
+    let preset_path = std::env::current_dir()
+        .unwrap()
+        .join("preset")
+        .join(PRESET_NAME);
+    if !preset_path.exists() {
+        let factorio_path = factorio::find_factorio_install_dir().unwrap();
         let config_dir = factorio::find_factorio_config_dir().unwrap();
 
         factorio::export::export(factorio::export::ExportArgs {
             mod_directory: &config_dir,
             factorio_dir: &factorio_path,
-            output_dir: &std::env::current_dir().unwrap().join("preset").join(PRESET),
+            output_dir: &preset_path,
         });
     }
-
-    let data = std::fs::read_to_string("preset/py/script-output/data-raw-dump.json")
-        .expect("Failed to read data-raw-dump.json");
-    let json: serde_json::Value = serde_json::from_str(&data).unwrap();
-
-    let mut result = FxHashMap::default();
-
-    let serde_json::Value::Object(root) = json else {
-        panic!("Root should be an object");
-    };
-
-    for (name, val) in root {
-        if result.contains_key(&name) {
-            panic!("Duplicate key: {name}");
-        }
-        let serde_json::Value::Object(o) = val else {
-            panic!("Nested object should be an object");
-        };
-        if ![
-            "boiler",
-            "fluid",
-            "furnace",
-            "fuel-category",
-            "item",
-            "item-group",
-            "item-subgroup",
-            "module",
-            "module-category",
-            "recipe",
-            "resource",
-            "resource-category",
-        ]
-        .contains(&name.as_str())
-        {
-            continue;
-        }
-        println!("{name}");
-
-        let mut ty = Ty::default();
-        for (name, o) in o {
-            let serde_json::Value::Object(fields) = o else {
-                panic!("Object fields should be an object");
-            };
-            ty.names.insert(name);
-            for (name, val) in fields {
-                ty.fields.entry(name).or_default().merge(FieldTy::from(val));
-            }
-        }
-        for val in ty.fields.values_mut() {
-            val.collapse(vec![name.clone()]);
-        }
-        result.insert(name, ty);
-    }
-
-    let fs = File::create("out.json").unwrap();
-    let mut write = BufWriter::new(fs);
-    serde_json::to_writer_pretty(&mut write, &result).unwrap();
-    write.flush().unwrap();
-
-    for (name, ty) in result {
-        generate_type(name, ty);
-    }
-
-    // let preset = Preset::load(PRESET);
+    let _preset = Preset::load(PRESET_NAME);
     // ui::start(1000, 800, "SupervisoRS", true, App::default());
 }
 

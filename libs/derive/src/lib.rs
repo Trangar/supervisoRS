@@ -112,7 +112,7 @@ pub fn custom_deserialize_derive(input: TokenStream) -> TokenStream {
                     type Value = #name #ty_generics;
 
                     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        formatter.write_str("struct #name")
+                        write!(formatter, "struct {}", stringify!(#name))
                     }
 
                     fn visit_map<V>(self, mut map: V) -> Result<#name #ty_generics, V::Error>

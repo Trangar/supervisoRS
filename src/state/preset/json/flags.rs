@@ -12,6 +12,10 @@ pub enum Flags {
     NotRotatable,
     HideAltInfo,
     GoesToMainInventory,
+    NotStackable,
+    Spawnable,
+    NotRepairable,
+    NotDeconstructable,
 }
 
 impl std::str::FromStr for Flags {
@@ -31,6 +35,10 @@ impl std::str::FromStr for Flags {
             "not-rotatable" | "NotRotatable" => Ok(Flags::NotRotatable),
             "hide-alt-info" | "HideAltInfo" => Ok(Flags::HideAltInfo),
             "goes-to-main-inventory" | "GoesToMainInventory" => Ok(Flags::GoesToMainInventory),
+            "not-stackable" | "NotStackable" => Ok(Flags::NotStackable),
+            "spawnable" | "Spawnable" => Ok(Flags::Spawnable),
+            "not-repairable" | "NotRepairable" => Ok(Flags::NotRepairable),
+            "not-deconstructable" | "NotDeconstructable" => Ok(Flags::NotDeconstructable),
             _ => Err(()),
         }
     }
@@ -51,6 +59,10 @@ impl Flags {
             Flags::NotRotatable,
             Flags::HideAltInfo,
             Flags::GoesToMainInventory,
+            Flags::NotStackable,
+            Flags::Spawnable,
+            Flags::NotRepairable,
+            Flags::NotDeconstructable,
         ]
     }
 
@@ -68,6 +80,10 @@ impl Flags {
             "not-rotatable",
             "hide-alt-info",
             "goes-to-main-inventory",
+            "not-stackable",
+            "spawnable",
+            "not-repairable",
+            "not-deconstructable",
         ]
     }
 }

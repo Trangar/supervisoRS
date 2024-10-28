@@ -85,9 +85,9 @@ impl Preset {
             .flat_map(|r| r.0.iter())
         {
             if result.ty == "item" {
-                item_ids.add(result.item);
+                item_ids.add(result.name);
             } else if result.ty == "fluid" {
-                fluid_ids.add(result.item);
+                fluid_ids.add(result.name);
             }
         }
         for result in deserialized.recipe.values().filter_map(|r| r.result) {
@@ -327,9 +327,9 @@ impl Output {
     ) -> Self {
         Self {
             item_or_fluid: if raw.ty == "item" {
-                ItemOrFluidId::Item(item_ids.get(raw.item))
+                ItemOrFluidId::Item(item_ids.get(raw.name))
             } else if raw.ty == "fluid" {
-                ItemOrFluidId::Fluid(fluid_ids.get(raw.item))
+                ItemOrFluidId::Fluid(fluid_ids.get(raw.name))
             } else {
                 panic!("Unknown result type: {}", raw.ty);
             },

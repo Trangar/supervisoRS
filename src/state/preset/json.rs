@@ -35,8 +35,32 @@ pub struct Root<'a> {
     pub module: FxHashMap<&'a str, Module<'a>>,
     pub recipe: FxHashMap<&'a str, Recipe<'a>>,
 
+    pub item_group: FxHashMap<&'a str, ItemGroup<'a>>,
+    pub item_subgroup: FxHashMap<&'a str, ItemSubgroup<'a>>,
+
     #[remaining]
     pub remaining: FxHashMap<&'a str, FxHashMap<&'a str, NameAndType<'a>>>,
+}
+
+#[derive(Debug, CustomDeserialize)]
+pub struct ItemGroup<'a> {
+    pub ty: &'a str,
+    pub name: &'a str,
+    pub order: &'a str,
+
+    #[remaining]
+    pub remaining: FxHashMap<&'a str, serde_json::Value>,
+}
+
+#[derive(Debug, CustomDeserialize)]
+pub struct ItemSubgroup<'a> {
+    pub ty: &'a str,
+    pub name: &'a str,
+    pub order: &'a str,
+    pub group: &'a str,
+
+    #[remaining]
+    pub remaining: FxHashMap<&'a str, serde_json::Value>,
 }
 
 #[derive(Debug, CustomDeserialize)]
@@ -46,9 +70,9 @@ pub struct Item<'a> {
     pub stack_size: usize,
     pub group: Option<&'a str>,
     pub subgroup: Option<&'a str>,
+    pub order: Option<&'a str>,
     pub category: Option<&'a str>,
     pub hidden: Option<bool>,
-    pub order: Option<&'a str>,
     pub rocket_launch_product: Option<(&'a str, usize)>,
     pub burnt_fuel_result: Option<&'a str>,
     pub burnt_result: Option<&'a str>,
@@ -64,8 +88,8 @@ pub struct Item<'a> {
 pub struct Capsule<'a> {
     pub ty: &'a str,
     pub name: &'a str,
-    pub subgroup: Option<&'a str>,
-    pub order: Option<&'a str>,
+    pub subgroup: &'a str,
+    pub order: &'a str,
     pub stack_size: usize,
     pub flags: Option<VecOrMap<Flags>>,
 
@@ -77,6 +101,9 @@ pub struct Capsule<'a> {
 pub struct Fluid<'a> {
     pub ty: &'a str,
     pub name: &'a str,
+    pub group: Option<&'a str>,
+    pub subgroup: Option<&'a str>,
+    pub order: Option<&'a str>,
     pub default_temperature: Option<f32>,
     pub min_temperature: Option<f32>,
     pub max_temperature: Option<f32>,
@@ -85,8 +112,6 @@ pub struct Fluid<'a> {
     pub hidden: Option<bool>,
     pub heat_capacity: Option<Unit>,
     pub fuel_value: Option<Unit>,
-    pub order: Option<&'a str>,
-    pub subgroup: Option<&'a str>,
     pub fuel_category: Option<&'a str>,
     pub flags: Option<VecOrMap<Flags>>,
 
@@ -98,6 +123,10 @@ pub struct Fluid<'a> {
 pub struct Assembler<'a> {
     pub ty: &'a str,
     pub name: &'a str,
+    pub order: Option<&'a str>,
+    pub group: Option<&'a str>,
+    pub subgroup: Option<&'a str>,
+
     pub flags: Option<VecOrMap<Flags>>,
     pub crafting_categories: Option<VecOrMap<&'a str>>,
     pub crafting_speed: Option<f32>,
@@ -108,13 +137,11 @@ pub struct Assembler<'a> {
     pub module_specification: Option<ModuleSpecification<'a>>,
     pub allowed_effects: Option<VecOrMap<&'a str>>,
     pub fluid_boxes: Option<FluidBoxes<'a>>,
-    pub subgroup: Option<&'a str>,
     pub energy_consumption: Option<Unit>,
     pub energy_source: Option<EnergySource<'a>>,
     pub ingredient_count: Option<usize>,
     pub next_upgrade: Option<&'a str>,
     pub fixed_recipe: Option<&'a str>,
-    pub order: Option<&'a str>,
     pub module_slots: Option<usize>,
 
     #[remaining]
@@ -125,12 +152,15 @@ pub struct Assembler<'a> {
 pub struct TransportBelt<'a> {
     pub ty: &'a str,
     pub name: &'a str,
+
+    pub group: Option<&'a str>,
     pub subgroup: Option<&'a str>,
+    pub order: Option<&'a str>,
+
     pub flags: Option<VecOrMap<Flags>>,
     pub fast_replaceable_group: Option<&'a str>,
     pub next_upgrade: Option<&'a str>,
     pub speed: f32,
-    pub order: Option<&'a str>,
 
     #[remaining]
     pub remaining: FxHashMap<&'a str, serde_json::Value>,

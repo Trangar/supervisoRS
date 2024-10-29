@@ -18,6 +18,31 @@ impl<'de> serde::de::Deserialize<'de> for Unit {
                 formatter.write_str("a string unit")
             }
 
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut amount = None;
+                let mut unit_type = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "amount" => amount = Some(map.next_value()?),
+                        "unit_type" => unit_type = Some(map.next_value()?),
+                        _ => {
+                            return Err(serde::de::Error::unknown_field(
+                                key,
+                                &["amount", "unit_type"],
+                            ))
+                        }
+                    }
+                }
+
+                match (amount, unit_type) {
+                    (Some(amount), Some(unit_type)) => Ok(Unit { amount, unit_type }),
+                    _ => Err(serde::de::Error::missing_field("amount or unit_type")),
+                }
+            }
+
             fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
@@ -35,11 +60,11 @@ impl<'de> serde::de::Deserialize<'de> for Unit {
             }
         }
 
-        deserializer.deserialize_str(Visitor)
+        deserializer.deserialize_any(Visitor)
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum UnitType {
     J,
     KJ,

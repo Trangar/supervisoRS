@@ -3,8 +3,9 @@ mod json;
 
 use id_generator::{FrozenIdGenerator, IdGenerator};
 use instant::Instant;
+use itertools::Itertools;
 use json::{Flags, Unit};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
 pub struct Preset {
@@ -15,6 +16,20 @@ pub struct Preset {
     pub items: FxHashMap<ItemId, Item>,
     #[serde(with = "fxhashmap_values")]
     pub fluids: FxHashMap<FluidId, Fluid>,
+    pub groups: Vec<Group>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Group {
+    pub name: String,
+    pub rows: Vec<GroupRow>,
+}
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
+pub struct GroupRow {
+    pub name: String,
+    pub items: Vec<ItemId>,
+    pub fluids: Vec<FluidId>,
+    pub recipes: Vec<RecipeId>,
 }
 
 mod fxhashmap_values {
@@ -57,20 +72,23 @@ mod fxhashmap_values {
 
 impl Preset {
     pub fn load(name: &str) -> Self {
+        let start = Instant::now();
         let json_file_name = format!("preset/{}/preset.json", name);
 
-        if std::fs::exists(&json_file_name).unwrap_or(false) {
-            let data =
-                std::fs::read_to_string(&json_file_name).expect("Failed to read preset.json");
-            match serde_json::from_str(&data) {
-                Ok(preset) => return preset,
-                Err(e) => {
-                    println!("Failed to deserialize preset.json: {:?}", e);
-                }
-            }
-        }
+        // if std::fs::exists(&json_file_name).unwrap_or(false) {
+        //     let data =
+        //         std::fs::read_to_string(&json_file_name).expect("Failed to read preset.json");
+        //     match serde_json::from_str(&data) {
+        //         Ok(preset) => {
+        //             println!("Loaded preset.json in {:?}", start.elapsed());
+        //             return preset;
+        //         }
+        //         Err(e) => {
+        //             println!("Failed to deserialize preset.json: {:?}", e);
+        //         }
+        //     }
+        // }
 
-        let start = Instant::now();
         let path = format!("preset/{}/script-output/data-raw-dump.json", name);
         let data = std::fs::read_to_string(path).expect("Failed to read data-raw-dump.json");
 
@@ -86,50 +104,25 @@ impl Preset {
         println!("  Found {} items", deserialized.item.len());
         println!("  Found {} fluids", deserialized.fluid.len());
 
-        let names = deserialized
-            .recipe
-            .values()
-            .flat_map(|r| r.remaining.keys())
-            .collect::<FxHashSet<_>>();
-        println!("Recipe remaining keys: {:?}", names);
+        #[derive(Default)]
+        struct SubgroupAggregator<'a> {
+            items: Vec<(&'a str, ItemId)>,
+            fluids: Vec<(&'a str, FluidId)>,
+            recipes: Vec<(&'a str, RecipeId)>,
+        }
 
-        let names = deserialized
-            .recipe
+        let mut subgroups = deserialized
+            .item_subgroup
             .values()
-            .flat_map(|r| r.ingredients.iter())
-            .flat_map(|i| i.0.iter())
-            .flat_map(|i| i.remaining.keys())
-            .collect::<FxHashSet<_>>();
-        println!("  ingredient remaining keys: {:?}", names);
-
-        let names = deserialized
-            .recipe
-            .values()
-            .flat_map(|r| r.results.iter())
-            .flat_map(|r| r.0.iter())
-            .flat_map(|r| r.remaining.keys())
-            .collect::<FxHashSet<_>>();
-        println!("  result remaining keys: {:?}", names);
-
-        let names = deserialized
-            .item
-            .values()
-            .flat_map(|r| r.remaining.keys())
-            .collect::<FxHashSet<_>>();
-        println!("Item remaining keys: {:?}", names);
-
-        let names = deserialized
-            .fluid
-            .values()
-            .flat_map(|r| r.remaining.keys())
-            .collect::<FxHashSet<_>>();
-        println!("Fluid remaining keys: {:?}", names);
+            .map(|sg| ((sg.group, sg.name), SubgroupAggregator::default()))
+            .collect::<FxHashMap<_, _>>();
 
         let mut preset = Preset {
             name: name.to_string(),
             recipes: FxHashMap::default(),
             items: FxHashMap::default(),
             fluids: FxHashMap::default(),
+            groups: Vec::new(),
         };
 
         let mut item_ids = IdGenerator::<ItemId>::default();
@@ -164,9 +157,6 @@ impl Preset {
                 fluid_ids.add(result.name);
             }
         }
-        // for result in deserialized.recipe.values().filter_map(|r| r.result) {
-        //     item_ids.add(result);
-        // }
 
         let item_ids = item_ids.freeze();
         let fluid_ids = fluid_ids.freeze();
@@ -182,7 +172,17 @@ impl Preset {
 
             preset
                 .recipes
-                .insert(id, Recipe::from_raw(id, recipe, &item_ids, &fluid_ids));
+                .insert(id, Recipe::from_raw(id, &recipe, &item_ids, &fluid_ids));
+
+            if let (Some(group), Some(subgroup), Some(order)) =
+                (recipe.group, recipe.subgroup, recipe.order)
+            {
+                subgroups
+                    .get_mut(&(group, subgroup))
+                    .unwrap()
+                    .recipes
+                    .push((order, id));
+            }
         }
 
         for (item_name, item) in deserialized.item {
@@ -200,11 +200,7 @@ impl Preset {
                     id,
                     name: item_name.to_string(),
                     stack_size: item.stack_size,
-                    group: item.group.map(|g| g.to_owned()),
-                    subgroup: item.subgroup.map(|s| s.to_owned()),
-                    category: item.category.map(|c| c.to_owned()),
                     hidden: item.hidden.unwrap_or(false),
-                    order: item.order.map(|o| o.to_owned()),
                     rocket_launch_product: item
                         .rocket_launch_product
                         .map(|(n, c)| (item_ids.get(n), c)),
@@ -213,9 +209,19 @@ impl Preset {
                     flags: item.flags.map(|f| f.0),
                 },
             );
+
+            if let (Some(group), Some(subgroup), Some(order)) =
+                (item.group, item.subgroup, item.order)
+            {
+                subgroups
+                    .get_mut(&(group, subgroup))
+                    .unwrap()
+                    .items
+                    .push((order, id));
+            }
         }
 
-        for (fluid_name, _fluid) in deserialized.fluid {
+        for (fluid_name, fluid) in deserialized.fluid {
             let id = fluid_ids.get(fluid_name);
 
             if preset.fluids.contains_key(&id) {
@@ -231,6 +237,57 @@ impl Preset {
                     name: fluid_name.to_string(),
                 },
             );
+            if let (Some(group), Some(subgroup), Some(order)) =
+                (fluid.group, fluid.subgroup, fluid.order)
+            {
+                subgroups
+                    .get_mut(&(group, subgroup))
+                    .unwrap()
+                    .fluids
+                    .push((order, id));
+            }
+        }
+
+        for group in deserialized.item_group.values().sorted_by_key(|g| g.order) {
+            let mut group = Group {
+                name: group.name.to_owned(),
+                rows: Vec::new(),
+            };
+
+            for subgroup in deserialized
+                .item_subgroup
+                .values()
+                .filter(|sg| sg.group == group.name)
+                .sorted_by_key(|sg| sg.order)
+            {
+                let Some(sg) = subgroups.get(&(group.name.as_str(), subgroup.name)) else {
+                    continue;
+                };
+
+                group.rows.push(GroupRow {
+                    name: subgroup.name.to_owned(),
+                    items: sg
+                        .items
+                        .iter()
+                        .sorted_by_key(|(order, _)| *order)
+                        .map(|(_, id)| *id)
+                        .collect(),
+                    fluids: sg
+                        .fluids
+                        .iter()
+                        .sorted_by_key(|(order, _)| *order)
+                        .map(|(_, id)| *id)
+                        .collect(),
+                    recipes: sg
+                        .recipes
+                        .iter()
+                        .sorted_by_key(|(order, _)| *order)
+                        .map(|(_, id)| *id)
+                        .collect(),
+                });
+            }
+
+            preset.groups.push(group);
         }
 
         std::fs::write(
@@ -277,14 +334,6 @@ id!(FluidId);
 pub struct Recipe {
     pub id: RecipeId,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub subgroup: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub order: Option<String>,
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
 }
@@ -298,17 +347,13 @@ impl fxhashmap_values::Keyable<RecipeId> for Recipe {
 impl Recipe {
     pub fn from_raw(
         id: RecipeId,
-        raw: json::Recipe,
+        raw: &json::Recipe,
         item_ids: &FrozenIdGenerator<ItemId>,
         fluid_ids: &FrozenIdGenerator<FluidId>,
     ) -> Self {
         let mut result = Self {
             id,
             name: raw.name.to_owned(),
-            category: raw.category.map(|s| s.to_owned()),
-            group: raw.group.map(|s| s.to_owned()),
-            subgroup: raw.subgroup.map(|s| s.to_owned()),
-            order: raw.order.map(|s| s.to_owned()),
             ..Default::default()
         };
 
@@ -432,16 +477,8 @@ pub struct Item {
     pub id: ItemId,
     pub name: String,
     pub stack_size: usize,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub group: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub subgroup: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub category: Option<String>,
     #[serde(skip_serializing_if = "is_false", default)]
     pub hidden: bool,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub order: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub rocket_launch_product: Option<(ItemId, usize)>,
     #[serde(skip_serializing_if = "Option::is_none", default)]

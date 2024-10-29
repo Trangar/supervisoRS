@@ -26,16 +26,16 @@ fn main() {
     }
 
     let preset = Preset::load(PRESET_NAME);
-    ui::start(
-        1000,
-        800,
-        "SupervisoRS",
-        true,
-        App {
-            preset,
-            ..Default::default()
-        },
-    );
+    // ui::start(
+    //     1000,
+    //     800,
+    //     "SupervisoRS",
+    //     true,
+    //     App {
+    //         preset,
+    //         ..Default::default()
+    //     },
+    // );
 }
 
 struct App {

@@ -17,13 +17,15 @@ use winit::{
     window::WindowBuilder,
 };
 
+use crate::utils::{Point2, Vec2};
+
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
 pub trait App {
     fn draw(&mut self, canvas: &mut Canvas, ctx: DrawCtx);
     fn resize(&mut self, _ctx: &mut EventCtx, _width: u32, _height: u32) {}
     fn key_down(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
     fn key_up(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
-    fn mouse_move(&mut self, _ctx: &mut EventCtx, _x: f32, _y: f32) {}
+    fn mouse_move(&mut self, _ctx: &mut EventCtx, _delta: Vec2) {}
     fn mouse_down(&mut self, _ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
     fn mouse_up(&mut self, _ctx: &mut EventCtx, _button: winit::event::MouseButton) {}
     fn mouse_scroll(&mut self, _ctx: &mut EventCtx, _delta: winit::event::MouseScrollDelta) {}
@@ -154,19 +156,15 @@ pub fn start(
     // let start = instant::Instant::now();
     // let mut prevt = start;
 
-    let mut mousex = 0.0;
-    let mut mousey = 0.0;
+    let mut mouse = Point2::ZERO;
     // let mut dragging = false;
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        let (x, y) = rel_mouse(mousex, mousey, &canvas);
-
         let mut ctx = EventCtx {
+            mouse: rel_mouse(mouse, &canvas),
             canvas: &mut canvas,
-            mousex: x,
-            mousey: y,
             redraw: false,
             control_flow,
         };
@@ -202,12 +200,12 @@ pub fn start(
                     app.mouse_scroll(&mut ctx, *delta);
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    mousex = position.x as f32;
-                    mousey = position.y as f32;
+                    let new_position = Point2::new(position.x as f32, position.y as f32);
+                    let delta = Vec2::from(new_position - mouse);
+                    mouse = new_position;
+                    ctx.mouse = rel_mouse(mouse, ctx.canvas);
 
-                    let (x, y) = rel_mouse(mousex, mousey, ctx.canvas);
-
-                    app.mouse_move(&mut ctx, x, y);
+                    app.mouse_move(&mut ctx, delta);
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *state == winit::event::ElementState::Pressed {
@@ -232,11 +230,8 @@ pub fn start(
                 ctx.canvas
                     .set_size(size.width, size.height, dpi_factor as f32);
 
-                let (x, y) = rel_mouse(mousex, mousey, ctx.canvas);
-
                 let draw_ctx = DrawCtx {
-                    mousex: x,
-                    mousey: y,
+                    mouse: rel_mouse(mouse, ctx.canvas),
                 };
 
                 app.draw(ctx.canvas, draw_ctx);
@@ -259,19 +254,21 @@ pub fn start(
     });
 }
 
-fn rel_mouse(x: f32, y: f32, canvas: &Canvas) -> (f32, f32) {
-    canvas.transform().inversed().transform_point(x, y)
+fn rel_mouse(abs_mouse: Point2, canvas: &Canvas) -> Point2 {
+    canvas
+        .transform()
+        .inversed()
+        .transform_point(abs_mouse.x, abs_mouse.y)
+        .into()
 }
 
 pub struct DrawCtx {
-    pub mousex: f32,
-    pub mousey: f32,
+    pub mouse: Point2,
 }
 
 pub struct EventCtx<'a> {
     pub canvas: &'a mut Canvas,
-    pub mousex: f32,
-    pub mousey: f32,
+    pub mouse: Point2,
 
     redraw: bool,
 
@@ -288,20 +285,24 @@ impl EventCtx<'_> {
             .canvas
             .transform()
             .inversed()
-            .transform_point(self.mousex, self.mousey);
+            .transform_point(self.mouse.x, self.mouse.y);
         self.canvas.translate(pt.0, pt.1);
         self.canvas.scale(1.0 + (zoom / 10.0), 1.0 + (zoom / 10.0));
         self.canvas.translate(-pt.0, -pt.1);
         self.redraw = true;
     }
 
-    pub fn translate(&mut self, x: f32, y: f32) {
+    pub fn translate_by(&mut self, relative: Vec2) {
         let p0 = self
             .canvas
             .transform()
             .inversed()
-            .transform_point(self.mousex, self.mousey);
-        let p1 = self.canvas.transform().inversed().transform_point(x, y);
+            .transform_point(self.mouse.x, self.mouse.y);
+        let p1 = self
+            .canvas
+            .transform()
+            .inversed()
+            .transform_point(self.mouse.x + relative.x, self.mouse.y + relative.y);
 
         self.canvas.translate(p1.0 - p0.0, p1.1 - p0.1);
         self.redraw = true;

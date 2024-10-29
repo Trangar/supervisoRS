@@ -2,6 +2,7 @@ use femtovg::{Paint, Path};
 use rustc_hash::FxHashMap;
 use state::{Preset, Theme};
 use ui::{Canvas, DrawCtx};
+use utils::{Point2, Rectangle, Vec2};
 
 mod factorio;
 mod state;
@@ -26,16 +27,16 @@ fn main() {
     }
 
     let preset = Preset::load(PRESET_NAME);
-    // ui::start(
-    //     1000,
-    //     800,
-    //     "SupervisoRS",
-    //     true,
-    //     App {
-    //         preset,
-    //         ..Default::default()
-    //     },
-    // );
+    ui::start(
+        1000,
+        800,
+        "SupervisoRS",
+        true,
+        App {
+            preset,
+            ..Default::default()
+        },
+    );
 }
 
 struct App {
@@ -87,7 +88,7 @@ enum Drag {
         node: NodeId,
         socket_index: usize,
         input: bool,
-        initial_direction: (f32, f32),
+        initial_direction: Vec2,
     },
 }
 
@@ -99,7 +100,7 @@ impl Drag {
         nodes: &FxHashMap<NodeId, Node>,
         canvas: &mut Canvas,
         paint: &Paint,
-        to: (f32, f32),
+        to: Point2,
     ) {
         if let Drag::LineFromNodeSocket {
             node,
@@ -111,27 +112,16 @@ impl Drag {
             let mut path = Path::new();
             let node = nodes.get(node).unwrap();
             let position = get_node_socket_position(node, *socket_index, *input);
-            let initial_ = (position.x + 10.0, position.y + 10.0);
-            path.move_to(initial_.0, initial_.1);
-            let end_direction = (
-                if to.0 > initial_.0 {
-                    -Self::BEZIER_DIST
-                } else {
-                    Self::BEZIER_DIST
-                },
-                if to.1 > initial_.1 {
-                    -Self::BEZIER_DIST
-                } else {
-                    Self::BEZIER_DIST
-                },
-            );
+            let initial_ = position.center();
+            path.move_to(initial_.x, initial_.y);
+            let end_direction = to.relative_to(initial_) * Self::BEZIER_DIST;
             path.bezier_to(
-                initial_.0 + initial_direction.0,
-                initial_.1 + initial_direction.1,
-                to.0 + end_direction.0,
-                to.1 + end_direction.1,
-                to.0,
-                to.1,
+                initial_.x + initial_direction.x,
+                initial_.y + initial_direction.y,
+                to.x - end_direction.x,
+                to.y - end_direction.y,
+                to.x,
+                to.y,
             );
 
             canvas.stroke_path(&path, paint);
@@ -198,7 +188,7 @@ impl ui::App for App {
             &self.nodes,
             canvas,
             &Paint::color(self.theme.layer_color(3)).with_line_width(5.),
-            (ctx.mousex, ctx.mousey),
+            ctx.mouse,
         );
     }
 
@@ -231,17 +221,16 @@ impl ui::App for App {
         }
     }
 
-    fn mouse_move(&mut self, ctx: &mut ui::EventCtx, x: f32, y: f32) {
+    fn mouse_move(&mut self, ctx: &mut ui::EventCtx, delta: Vec2) {
         match self.dragging {
             Drag::Everything => {
-                ctx.translate(x, y);
+                ctx.translate_by(delta);
                 ctx.redraw();
                 return;
             }
             Drag::Node(node_id) => {
                 let node = self.nodes.get_mut(&node_id).unwrap();
-                node.x = x;
-                node.y = y;
+                node.position += delta;
                 ctx.redraw();
                 return;
             }
@@ -249,7 +238,7 @@ impl ui::App for App {
             _ => {}
         }
 
-        let hover = self.find_hover(x, y);
+        let hover = self.find_hover(ctx.mouse);
         if hover != self.hover {
             self.hover = hover;
             ctx.redraw();
@@ -273,7 +262,7 @@ impl ui::App for App {
     }
 }
 
-fn get_socket_initial_direction(nodes: &FxHashMap<NodeId, Node>, hover: Hover) -> (f32, f32) {
+fn get_socket_initial_direction(nodes: &FxHashMap<NodeId, Node>, hover: Hover) -> Vec2 {
     match hover {
         Hover::NodeSocket { node, input, .. } => {
             let len = Drag::BEZIER_DIST;
@@ -288,16 +277,17 @@ fn get_socket_initial_direction(nodes: &FxHashMap<NodeId, Node>, hover: Hover) -
                 (Cardinal::North, false) => (0., len),
                 (Cardinal::East, false) => (-len, 0.),
             }
+            .into()
         }
-        _ => (0., 0.),
+        _ => Vec2::ZERO,
     }
 }
 
 impl App {
-    fn find_hover(&self, x: f32, y: f32) -> Hover {
+    fn find_hover(&self, point: Point2) -> Hover {
         for node in self.nodes.values() {
             for (index, _input) in node.inputs.iter().enumerate() {
-                if get_node_socket_position(node, index, true).contains(x, y) {
+                if get_node_socket_position(node, index, true).contains(point) {
                     return Hover::NodeSocket {
                         node: node.id,
                         socket: index,
@@ -307,7 +297,7 @@ impl App {
             }
 
             for (index, _output) in node.outputs.iter().enumerate() {
-                if get_node_socket_position(node, index, false).contains(x, y) {
+                if get_node_socket_position(node, index, false).contains(point) {
                     return Hover::NodeSocket {
                         node: node.id,
                         socket: index,
@@ -316,41 +306,15 @@ impl App {
                 }
             }
 
-            if get_node_position(node).contains(x, y) {
+            if get_node_position(node).contains(point) {
                 return Hover::Node(node.id);
             }
         }
         Hover::None
     }
 }
-
-struct Rectangle {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-}
-
-impl Rectangle {
-    pub fn contains(&self, x: f32, y: f32) -> bool {
-        x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
-    }
-
-    pub fn draw(&self, canvas: &mut Canvas, bg_paint: &Paint, border_paint: &Paint) {
-        let mut path = Path::new();
-        path.rounded_rect(self.x, self.y, self.width, self.height, 5.0);
-        canvas.fill_path(&path, bg_paint);
-        canvas.stroke_path(&path, border_paint);
-    }
-}
-
 fn get_node_position(node: &Node) -> Rectangle {
-    Rectangle {
-        x: node.x - 50.0,
-        y: node.y - 50.0,
-        width: 100.0,
-        height: 100.0,
-    }
+    Rectangle::centered_square(node.position, 100.)
 }
 
 fn get_node_socket_position(node: &Node, socket: usize, is_input: bool) -> Rectangle {
@@ -359,22 +323,22 @@ fn get_node_socket_position(node: &Node, socket: usize, is_input: bool) -> Recta
     } else {
         node.direction.output_offset()
     };
+    let count = if is_input {
+        node.inputs.len()
+    } else {
+        node.outputs.len()
+    };
+    let half_count = if count == 0 {
+        0.0
+    } else {
+        (count - 1) as f32 / 2.0
+    };
 
-    let offset = (node.x + offset.0, node.y + offset.1);
-    let offset = (
-        offset.0 - (step.0 * (node.inputs.len() - 1) as f32 / 2.),
-        offset.1 - (step.1 * (node.inputs.len() - 1) as f32 / 2.),
-    );
+    let offset = node.position + offset - (step * half_count);
 
-    let x = offset.0 + step.0 * socket as f32;
-    let y = offset.1 + step.1 * socket as f32;
+    let pos = offset + step * socket as f32;
 
-    Rectangle {
-        x: x - 10.0,
-        y: y - 10.0,
-        width: 20.0,
-        height: 20.0,
-    }
+    Rectangle::centered_square(pos, 20.)
 }
 
 fn draw_node(
@@ -387,7 +351,7 @@ fn draw_node(
     let rectangle = get_node_position(node);
     let bg_paint = Paint::color(theme.layer_color(if hover { 2 } else { 1 }));
     let border_paint = Paint::color(theme.layer_color(if hover { 3 } else { 2 }));
-    rectangle.draw(canvas, &bg_paint, &border_paint);
+    rectangle.draw_rounded(canvas, &bg_paint, &border_paint, 5.);
 
     let bg_paint = Paint::color(theme.layer_color(2));
     let border_paint = Paint::color(theme.layer_color(3));
@@ -410,7 +374,7 @@ fn draw_node(
             } else {
                 &border_paint
             };
-            rectangle.draw(canvas, bg_paint, border_paint);
+            rectangle.draw_rounded(canvas, bg_paint, border_paint, 2.0);
         }
     }
 
@@ -429,7 +393,7 @@ fn draw_node(
             } else {
                 &border_paint
             };
-            rectangle.draw(canvas, bg_paint, border_paint);
+            rectangle.draw_rounded(canvas, bg_paint, border_paint, 2.0);
         }
     }
 }
@@ -451,8 +415,7 @@ enum ItemOrFluidId {
 
 struct Node {
     id: NodeId,
-    x: f32,
-    y: f32,
+    position: Point2,
 
     inputs: Vec<InOutput>,
     outputs: Vec<InOutput>,
@@ -473,21 +436,21 @@ enum Cardinal {
 }
 
 impl Cardinal {
-    fn input_offset(&self) -> ((f32, f32), (f32, f32)) {
+    fn input_offset(&self) -> (Point2, Vec2) {
         match self {
-            Cardinal::North => ((0.0, -50.0), (20.0, 0.0)),
-            Cardinal::East => ((50.0, 0.0), (0.0, 20.0)),
-            Cardinal::South => ((0.0, 50.0), (20.0, 0.0)),
-            Cardinal::West => ((-50.0, 0.0), (0.0, 20.0)),
+            Cardinal::North => ((0.0, -50.0).into(), (20.0, 0.0).into()),
+            Cardinal::East => ((50.0, 0.0).into(), (0.0, 20.0).into()),
+            Cardinal::South => ((0.0, 50.0).into(), (20.0, 0.0).into()),
+            Cardinal::West => ((-50.0, 0.0).into(), (0.0, 20.0).into()),
         }
     }
 
-    fn output_offset(&self) -> ((f32, f32), (f32, f32)) {
+    fn output_offset(&self) -> (Point2, Vec2) {
         match self {
-            Cardinal::South => ((0.0, -50.0), (20.0, 0.0)),
-            Cardinal::West => ((50.0, 0.0), (0.0, 20.0)),
-            Cardinal::North => ((0.0, 50.0), (20.0, 0.0)),
-            Cardinal::East => ((-50.0, 0.0), (0.0, 20.0)),
+            Cardinal::South => ((0.0, -50.0).into(), (20.0, 0.0).into()),
+            Cardinal::West => ((50.0, 0.0).into(), (0.0, 20.0).into()),
+            Cardinal::North => ((0.0, 50.0).into(), (20.0, 0.0).into()),
+            Cardinal::East => ((-50.0, 0.0).into(), (0.0, 20.0).into()),
         }
     }
 }

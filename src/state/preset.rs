@@ -75,19 +75,19 @@ impl Preset {
         let start = Instant::now();
         let json_file_name = format!("preset/{}/preset.json", name);
 
-        // if std::fs::exists(&json_file_name).unwrap_or(false) {
-        //     let data =
-        //         std::fs::read_to_string(&json_file_name).expect("Failed to read preset.json");
-        //     match serde_json::from_str(&data) {
-        //         Ok(preset) => {
-        //             println!("Loaded preset.json in {:?}", start.elapsed());
-        //             return preset;
-        //         }
-        //         Err(e) => {
-        //             println!("Failed to deserialize preset.json: {:?}", e);
-        //         }
-        //     }
-        // }
+        if std::fs::exists(&json_file_name).unwrap_or(false) {
+            let data =
+                std::fs::read_to_string(&json_file_name).expect("Failed to read preset.json");
+            match serde_json::from_str(&data) {
+                Ok(preset) => {
+                    println!("Loaded preset.json in {:?}", start.elapsed());
+                    return preset;
+                }
+                Err(e) => {
+                    println!("Failed to deserialize preset.json: {:?}", e);
+                }
+            }
+        }
 
         let path = format!("preset/{}/script-output/data-raw-dump.json", name);
         let data = std::fs::read_to_string(path).expect("Failed to read data-raw-dump.json");

@@ -1,3 +1,9 @@
+pub mod app;
+pub mod context_menu;
+pub mod drag;
+pub mod hover;
+pub mod utils;
+
 #[cfg(not(target_arch = "wasm32"))]
 use std::num::NonZeroU32;
 
@@ -122,6 +128,7 @@ pub fn start(
 
         let mut canvas = Canvas::new(renderer).expect("Cannot create canvas");
         canvas.set_size(width, height, window.scale_factor() as f32);
+        canvas.add_font("assets/Roboto-Regular.ttf").unwrap();
 
         (canvas, window, gl_context, surface)
     };
@@ -165,6 +172,7 @@ pub fn start(
         let mut ctx = EventCtx {
             mouse: rel_mouse(mouse, &canvas),
             canvas: &mut canvas,
+            window_size: Point2::new(width as f32, height as f32),
             redraw: false,
             control_flow,
         };
@@ -269,6 +277,7 @@ pub struct DrawCtx {
 pub struct EventCtx<'a> {
     pub canvas: &'a mut Canvas,
     pub mouse: Point2,
+    pub window_size: Point2,
 
     redraw: bool,
 

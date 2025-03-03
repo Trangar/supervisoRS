@@ -140,21 +140,21 @@ impl Vec2 {
         Self { x, y }
     }
 
-    pub fn add(&self, other: Vec2) -> Vec2 {
-        Vec2::new(self.x + other.x, self.y + other.y)
-    }
+    // pub fn add(&self, other: Vec2) -> Vec2 {
+    //     Vec2::new(self.x + other.x, self.y + other.y)
+    // }
 
-    pub fn sub(&self, other: Vec2) -> Vec2 {
-        Vec2::new(self.x - other.x, self.y - other.y)
-    }
+    // pub fn sub(&self, other: Vec2) -> Vec2 {
+    //     Vec2::new(self.x - other.x, self.y - other.y)
+    // }
 
-    pub fn mul(&self, scalar: f32) -> Vec2 {
-        Vec2::new(self.x * scalar, self.y * scalar)
-    }
+    // pub fn mul(&self, scalar: f32) -> Vec2 {
+    //     Vec2::new(self.x * scalar, self.y * scalar)
+    // }
 
-    pub fn div(&self, scalar: f32) -> Vec2 {
-        Vec2::new(self.x / scalar, self.y / scalar)
-    }
+    // pub fn div(&self, scalar: f32) -> Vec2 {
+    //     Vec2::new(self.x / scalar, self.y / scalar)
+    // }
 
     pub fn dot(&self, other: Vec2) -> f32 {
         self.x * other.x + self.y * other.y
@@ -164,9 +164,9 @@ impl Vec2 {
         self.dot(*self).sqrt()
     }
 
-    pub fn normalize(&self) -> Vec2 {
-        self.div(self.length())
-    }
+    // pub fn normalize(&self) -> Vec2 {
+    //     self.div(self.length())
+    // }
 }
 
 impl From<(f32, f32)> for Vec2 {
@@ -183,6 +183,14 @@ impl std::ops::Mul<f32> for Vec2 {
     }
 }
 
+impl std::ops::Neg for Vec2 {
+    type Output = Vec2;
+
+    fn neg(self) -> Vec2 {
+        Vec2::new(-self.x, -self.y)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Point2 {
     pub x: f32,
@@ -196,35 +204,33 @@ impl Point2 {
         Self { x, y }
     }
 
-    pub fn add(&self, other: Vec2) -> Point2 {
-        Point2::new(self.x + other.x, self.y + other.y)
-    }
+    // pub fn add(&self, other: Vec2) -> Point2 {
+    //     Point2::new(self.x + other.x, self.y + other.y)
+    // }
 
-    pub fn sub(&self, other: Vec2) -> Point2 {
-        Point2::new(self.x - other.x, self.y - other.y)
-    }
+    // pub fn sub(&self, other: Vec2) -> Point2 {
+    //     Point2::new(self.x - other.x, self.y - other.y)
+    // }
 
-    pub fn to_vec2(&self) -> Vec2 {
-        Vec2::new(self.x, self.y)
-    }
+    // pub fn to_vec2(&self) -> Vec2 {
+    //     Vec2::new(self.x, self.y)
+    // }
 
     pub fn relative_to(&self, other: Point2) -> Vec2 {
-        Vec2::new(
-            if self.x < other.x {
-                -1.
-            } else if self.x > other.x {
-                1.
-            } else {
-                0.
-            },
-            if self.y < other.y {
-                -1.
-            } else if self.y > other.y {
-                1.
-            } else {
-                0.
-            },
-        )
+        let xdiff = self.x - other.x;
+        let ydiff = self.y - other.y;
+
+        if xdiff.abs() > ydiff.abs() {
+            Vec2::new(xdiff.signum(), 0.)
+        } else {
+            Vec2::new(0., ydiff.signum())
+        }
+    }
+
+    pub(crate) fn distance(&self, to: Point2) -> f32 {
+        let dx = self.x - to.x;
+        let dy = self.y - to.y;
+        (dx * dx + dy * dy).sqrt()
     }
 }
 

@@ -1,7 +1,11 @@
 use femtovg::{Paint, Path};
 use rustc_hash::FxHashMap;
 
-use crate::{ui::Canvas, Cardinal, FluidId, InOutput, ItemId, ItemOrFluidId, Node, NodeId};
+use crate::{
+    state::{FluidId, ItemId},
+    ui::Canvas,
+    Cardinal, InOutput, ItemOrFluidId, Node, NodeId,
+};
 
 pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
     let mut nodes = FxHashMap::default();
@@ -140,22 +144,6 @@ impl Vec2 {
         Self { x, y }
     }
 
-    // pub fn add(&self, other: Vec2) -> Vec2 {
-    //     Vec2::new(self.x + other.x, self.y + other.y)
-    // }
-
-    // pub fn sub(&self, other: Vec2) -> Vec2 {
-    //     Vec2::new(self.x - other.x, self.y - other.y)
-    // }
-
-    // pub fn mul(&self, scalar: f32) -> Vec2 {
-    //     Vec2::new(self.x * scalar, self.y * scalar)
-    // }
-
-    // pub fn div(&self, scalar: f32) -> Vec2 {
-    //     Vec2::new(self.x / scalar, self.y / scalar)
-    // }
-
     pub fn dot(&self, other: Vec2) -> f32 {
         self.x * other.x + self.y * other.y
     }
@@ -164,14 +152,27 @@ impl Vec2 {
         self.dot(*self).sqrt()
     }
 
-    // pub fn normalize(&self) -> Vec2 {
-    //     self.div(self.length())
-    // }
+    pub fn with_size(self, size: Vec2) -> Rectangle {
+        Rectangle {
+            x: self.x,
+            y: self.y,
+            width: size.x,
+            height: size.y,
+        }
+    }
 }
 
 impl From<(f32, f32)> for Vec2 {
     fn from((x, y): (f32, f32)) -> Self {
         Vec2::new(x, y)
+    }
+}
+
+impl std::ops::Add<Vec2> for Vec2 {
+    type Output = Vec2;
+
+    fn add(self, other: Vec2) -> Vec2 {
+        Vec2::new(self.x + other.x, self.y + other.y)
     }
 }
 
@@ -231,6 +232,15 @@ impl Point2 {
         let dx = self.x - to.x;
         let dy = self.y - to.y;
         (dx * dx + dy * dy).sqrt()
+    }
+
+    pub(crate) fn with_size(&self, size: Vec2) -> Rectangle {
+        Rectangle {
+            x: self.x,
+            y: self.y,
+            width: size.x,
+            height: size.y,
+        }
     }
 }
 
@@ -336,5 +346,14 @@ impl Rectangle {
 
     pub fn center(&self) -> Point2 {
         Point2::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
+    }
+
+    pub(crate) fn draw_fill(&self, canvas: &mut Canvas, paint: &Paint) {
+        let mut path = Path::new();
+        path.move_to(self.x, self.y);
+        path.line_to(self.x + self.width, self.y);
+        path.line_to(self.x + self.width, self.y + self.height);
+        path.line_to(self.x, self.y + self.height);
+        canvas.fill_path(&path, paint);
     }
 }

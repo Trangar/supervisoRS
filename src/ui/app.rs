@@ -2,6 +2,8 @@ use super::{
     context_menu::{ContextMenu, ContextMenuItem},
     drag::{Drag, DragState},
     hover::Hover,
+    image_ctx::ImageCtx,
+    selector::Selector,
     utils::{draw_bezier, get_node_socket_position},
     Canvas, DrawCtx, EventCtx,
 };
@@ -22,7 +24,9 @@ pub struct App {
     hover: Hover,
     dragging: Drag,
 
+    image_ctx: ImageCtx,
     context_menu: Option<ContextMenu>,
+    selector: Option<Selector>,
 }
 
 impl App {
@@ -34,7 +38,9 @@ impl App {
             theme: Theme::default(),
             hover: Hover::None,
             dragging: Drag::default(),
+            image_ctx: ImageCtx::default(),
             context_menu: None,
+            selector: None,
         }
     }
 
@@ -104,6 +110,22 @@ impl App {
         self.context_menu = Some(ContextMenu::new(ctx.mouse, ctx.window_size, items));
         ctx.redraw();
     }
+
+    fn open_recipe_selector(&mut self, pos: Point2) {
+        self.selector = Some(Selector::new_recipe(&self.preset, move |recipe_id, app| {
+            println!(
+                "TODO add recipe {:?} at {pos:?}",
+                app.preset.recipes[&recipe_id]
+            );
+        }));
+    }
+
+    fn open_item_selector(&mut self, pos: Point2) {
+        self.selector = Some(Selector::new_item(&self.preset, move |item_id, app| {
+            println!("TODO add item {:?} at {pos:?}", app.preset.items[&item_id]);
+        }));
+    }
+    fn open_fluid_selector(&mut self, pos: Point2) {}
 }
 
 impl super::App for App {
@@ -166,6 +188,9 @@ impl super::App for App {
         if let Some(context_menu) = &self.context_menu {
             context_menu.draw(canvas, &self.theme);
         }
+        if let Some(selector) = &self.selector {
+            selector.draw(canvas, &self.theme, &mut self.image_ctx);
+        }
     }
 
     fn mouse_down(&mut self, _ctx: &mut EventCtx, button: winit::event::MouseButton) {
@@ -191,9 +216,13 @@ impl super::App for App {
 
     fn mouse_up(&mut self, ctx: &mut EventCtx, button: winit::event::MouseButton) {
         if let Some(mut menu) = std::mem::take(&mut self.context_menu) {
-            if let Some(idx) = menu.hover_idx {
-                menu.items.remove(idx).click(self);
-            }
+            menu.try_click(self);
+            self.dragging.clear();
+            ctx.redraw();
+            return;
+        }
+        if let Some(mut selector) = std::mem::take(&mut self.selector) {
+            selector.try_click(self);
             self.dragging.clear();
             ctx.redraw();
             return;
@@ -241,11 +270,19 @@ impl super::App for App {
                     println!("TODO right click node {:?}", node);
                 }
                 Hover::None => {
+                    let pos = ctx.mouse;
                     self.set_right_click_menu(
                         ctx,
                         [
-                            ContextMenuItem::new("Add recipe", |_app| println!("TODO add recipe")),
-                            ContextMenuItem::new("Add fluid", |_app| println!("TODO add fluid")),
+                            ContextMenuItem::new("Add recipe", move |app| {
+                                app.open_recipe_selector(pos)
+                            }),
+                            ContextMenuItem::new("Add item", move |app| {
+                                app.open_item_selector(pos)
+                            }),
+                            ContextMenuItem::new("Add fluid", move |app| {
+                                app.open_fluid_selector(pos)
+                            }),
                         ],
                     );
                 }
@@ -256,6 +293,12 @@ impl super::App for App {
     fn mouse_move(&mut self, ctx: &mut EventCtx, delta: Vec2) {
         if let Some(menu) = &mut self.context_menu {
             if menu.mouse_move(ctx.mouse) {
+                ctx.redraw();
+                return;
+            }
+        }
+        if let Some(selector) = &mut self.selector {
+            if selector.mouse_move(ctx.mouse) {
                 ctx.redraw();
                 return;
             }

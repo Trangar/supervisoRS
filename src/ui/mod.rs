@@ -2,6 +2,8 @@ pub mod app;
 pub mod context_menu;
 pub mod drag;
 pub mod hover;
+pub mod image_ctx;
+pub mod selector;
 pub mod utils;
 
 #[cfg(not(target_arch = "wasm32"))]

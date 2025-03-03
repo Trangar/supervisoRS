@@ -1,4 +1,4 @@
-use state::Preset;
+use state::{FluidId, ItemId, Preset};
 use utils::{Point2, Vec2};
 
 mod factorio;
@@ -30,11 +30,11 @@ fn main() {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NodeId(pub usize);
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct ItemId(pub usize);
+// #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// struct ItemId(pub usize);
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct FluidId(pub usize);
+// #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// struct FluidId(pub usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum ItemOrFluidId {

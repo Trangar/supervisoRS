@@ -298,6 +298,31 @@ impl Preset {
 
         preset
     }
+
+    pub(crate) fn icon_for_fluid(&self, fluid: &Fluid) -> String {
+        format!(
+            "preset/{}/script-output/fluid/{}.png",
+            self.name, fluid.name
+        )
+    }
+
+    pub(crate) fn icon_for_item(&self, item: &Item) -> String {
+        format!("preset/{}/script-output/item/{}.png", self.name, item.name)
+    }
+
+    pub(crate) fn icon_for_recipe(&self, recipe: &Recipe) -> String {
+        format!(
+            "preset/{}/script-output/recipe/{}.png",
+            self.name, recipe.name
+        )
+    }
+
+    pub(crate) fn icon_for_tab_group(&self, g: &Group) -> String {
+        format!(
+            "preset/{}/script-output/item-group/{}.png",
+            self.name, g.name
+        )
+    }
 }
 
 macro_rules! id {
@@ -316,7 +341,7 @@ macro_rules! id {
             Debug,
         )]
         #[serde(transparent)]
-        pub struct $name(u32);
+        pub struct $name(pub u32);
 
         impl From<u32> for $name {
             fn from(value: u32) -> Self {

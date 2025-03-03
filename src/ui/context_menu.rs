@@ -93,6 +93,12 @@ impl ContextMenu {
                 .unwrap();
         }
     }
+
+    pub(crate) fn try_click(mut self, app: &mut App) {
+        if let Some(idx) = self.hover_idx {
+            self.items.remove(idx).click(app);
+        }
+    }
 }
 
 pub struct ContextMenuItem {

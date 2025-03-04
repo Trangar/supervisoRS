@@ -74,8 +74,13 @@ pub fn export(args: ExportArgs) {
 
 pub fn is_factorio_running(expected_arg: &str) -> bool {
     let system = System::new_all();
+    #[cfg(target_os = "windows")]
+    const PROCESS_NAME: &str = "factorio.exe";
+    #[cfg(not(target_os = "windows"))]
+    const PROCESS_NAME: &str = "factorio";
+
     for process in system.processes_by_name(std::ffi::OsStr::new("factorio")) {
-        if process.name().eq_ignore_ascii_case("factorio.exe") {
+        if process.name().eq_ignore_ascii_case(PROCESS_NAME) {
             let cmd = process.cmd();
             if cmd.is_empty() {
                 // We don't have access, assume this is our process

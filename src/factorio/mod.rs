@@ -24,7 +24,8 @@ pub fn find_factorio_install_dir() -> Option<PathBuf> {
         "~/.factorio/bin/x64",
     ] {
         let dir = shellexpand::tilde(dir).to_string();
-        if PathBuf::from(&dir).join("Factorio").exists() {
+        println!("Trying {}", dir);
+        if PathBuf::from(&dir).join("factorio").exists() {
             return Some(PathBuf::from(dir));
         }
     }

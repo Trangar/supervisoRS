@@ -335,3 +335,9 @@ impl EventCtx<'_> {
         self.redraw = true;
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PopupClickResult {
+    None,
+    Close,
+}

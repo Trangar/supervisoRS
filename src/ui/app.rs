@@ -5,7 +5,7 @@ use super::{
     image_ctx::ImageCtx,
     selector::Selector,
     utils::{draw_bezier, get_node_socket_position},
-    Canvas, DrawCtx, EventCtx,
+    Canvas, DrawCtx, EventCtx, PopupClickResult,
 };
 use crate::{
     state::{Preset, Theme},
@@ -208,6 +208,10 @@ impl super::App for App {
 
     fn mouse_down(&mut self, _ctx: &mut EventCtx, button: winit::event::MouseButton) {
         if button == winit::event::MouseButton::Left {
+            if self.selector.is_some() || self.context_menu.is_some() {
+                return;
+            }
+
             if let Hover::NodeSocket {
                 node,
                 socket,
@@ -234,12 +238,16 @@ impl super::App for App {
             ctx.redraw();
             return;
         }
-        if let Some(selector) = std::mem::take(&mut self.selector) {
-            selector.try_click(self);
+        if let Some(mut selector) = std::mem::take(&mut self.selector) {
+            if selector.try_click(self) != PopupClickResult::Close {
+                // If the selector is still open, put it back
+                self.selector = Some(selector);
+            }
             self.dragging.clear();
             ctx.redraw();
             return;
         }
+
         if button == winit::event::MouseButton::Left {
             match (self.dragging.mouse_up_was_click(), self.dragging.state()) {
                 (true, DragState::LineFromNodeSocket { pos, .. }) => {

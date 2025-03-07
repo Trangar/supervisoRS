@@ -1,4 +1,4 @@
-use super::{app::App, image_ctx::ImageCtx, DrawCtx};
+use super::{app::App, image_ctx::ImageCtx, DrawCtx, PopupClickResult};
 use crate::{
     state::{FluidId, GroupRow, Preset, RecipeId},
     utils::{Point2, Vec2},
@@ -8,11 +8,12 @@ use femtovg::Paint;
 
 pub struct Selector {
     pub tabs: Vec<SelectorTab>,
-    // pub active_tab: usize,
-    // pub hover_idx: Option<SelectorHover>,
-    // pub scroll_offset: Vec2,
+    pub active_tab: usize,
+    pub hover_idx: Option<SelectorHover>,
+    pub scroll_offset: Vec2,
     pub size: Vec2,
 }
+
 impl Selector {
     const TAB_HEIGHT: f32 = 50.0;
     const TAB_WIDTH: f32 = 50.0;
@@ -20,7 +21,9 @@ impl Selector {
     // const ITEM_HEIGHT: f32 = 50.0;
     const ITEM_WIDTH: f32 = 50.0;
 
-    pub(crate) fn try_click(self, _app: &mut App) {}
+    pub(crate) fn try_click(&mut self, _app: &mut App) -> PopupClickResult {
+        PopupClickResult::Close
+    }
 
     pub(crate) fn draw(&self, ctx: &mut DrawCtx, image_ctx: &mut ImageCtx) {
         let position = ctx.top_left_of_window();
@@ -35,9 +38,14 @@ impl Selector {
             .draw_fill(canvas, &Paint::color(theme.layer_color(3)));
         for (idx, tab) in self.tabs.iter().enumerate() {
             let tab_position = position + Vec2::new(idx as f32 * Self::TAB_WIDTH, 0.0);
-            let rect = tab_position
-                .with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT))
-                .shrink(1.);
+            let rect = tab_position.with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT));
+
+            if self.hover_idx.as_ref().map_or(false, |h| h.tab_idx == idx) || idx == self.active_tab
+            {
+                rect.draw_fill(canvas, &Paint::color(theme.layer_color(4)));
+            }
+
+            let rect = rect.shrink(1.);
             image_ctx.draw(canvas, &tab.icon, rect);
         }
 
@@ -55,8 +63,18 @@ impl Selector {
         // }
     }
 
-    pub(crate) fn mouse_move(&mut self, _mouse: Point2) -> bool {
-        false
+    pub(crate) fn mouse_move(&mut self, mouse: Point2) -> bool {
+        if mouse.y < Self::TAB_HEIGHT {
+            self.hover_idx = Some(SelectorHover {
+                tab_idx: (mouse.x / Self::TAB_WIDTH).floor() as usize,
+                row_idx: 0,
+                item_idx: 0,
+            });
+            true
+        } else {
+            // self.hover_idx = None;
+            false
+        }
     }
 
     fn new<'a, F, R>(preset: &'a Preset, mapper: F) -> Self
@@ -101,9 +119,9 @@ impl Selector {
                 max_width as f32 * Self::ITEM_WIDTH,
                 (max_height + 1) as f32 * Self::ROW_HEIGHT,
             ),
-            // active_tab: 0,
-            // hover_idx: None,
-            // scroll_offset: Vec2::ZERO,
+            active_tab: 0,
+            hover_idx: None,
+            scroll_offset: Vec2::ZERO,
         };
 
         result
@@ -160,11 +178,11 @@ impl Selector {
     }
 }
 
-// pub struct SelectorHover {
-//     pub tab_idx: usize,
-//     pub row_idx: usize,
-//     pub item_idx: usize,
-// }
+pub struct SelectorHover {
+    pub tab_idx: usize,
+    pub row_idx: usize,
+    pub item_idx: usize,
+}
 
 pub struct SelectorTab {
     #[allow(dead_code)]

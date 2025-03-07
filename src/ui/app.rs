@@ -319,7 +319,7 @@ impl super::App for App {
             }
         }
         if let Some(selector) = &mut self.selector {
-            if selector.mouse_move(ctx.mouse) {
+            if selector.mouse_move(ctx.raw_mouse) {
                 ctx.redraw();
                 return;
             }

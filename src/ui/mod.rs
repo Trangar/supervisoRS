@@ -175,6 +175,7 @@ pub fn start(
         *control_flow = ControlFlow::Poll;
 
         let mut ctx = EventCtx {
+            raw_mouse: mouse,
             mouse: rel_mouse(mouse, &canvas),
             canvas: &mut canvas,
             window_size: Point2::new(width as f32, height as f32),
@@ -279,17 +280,18 @@ pub struct DrawCtx<'a> {
     pub window_size: Point2,
 }
 impl DrawCtx<'_> {
-    pub fn top_left_of_window(&self) -> Point2 {
+    pub fn top_left_of_window(&self, offset: Vec2) -> Point2 {
         self.canvas
             .transform()
             .inversed()
-            .transform_point(0.0, 0.0)
+            .transform_point(offset.x, offset.y)
             .into()
     }
 }
 
 pub struct EventCtx<'a> {
     pub canvas: &'a mut Canvas,
+    pub raw_mouse: Point2,
     pub mouse: Point2,
     pub window_size: Point2,
 

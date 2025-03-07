@@ -140,16 +140,20 @@ pub struct Vec2 {
 impl Vec2 {
     pub const ZERO: Vec2 = Vec2 { x: 0.0, y: 0.0 };
 
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    pub fn dot(&self, other: Vec2) -> f32 {
+    pub const fn dot(&self, other: Vec2) -> f32 {
         self.x * other.x + self.y * other.y
     }
 
     pub fn length(&self) -> f32 {
         self.dot(*self).sqrt()
+    }
+
+    pub const fn splat(val: f32) -> Self {
+        Self::new(val, val)
     }
 
     // pub fn with_size(self, size: Vec2) -> Rectangle {
@@ -286,6 +290,13 @@ impl std::ops::Sub<Vec2> for Point2 {
 
     fn sub(self, other: Vec2) -> Point2 {
         Point2::new(self.x - other.x, self.y - other.y)
+    }
+}
+
+impl std::ops::SubAssign<Vec2> for Point2 {
+    fn sub_assign(&mut self, other: Vec2) {
+        self.x -= other.x;
+        self.y -= other.y;
     }
 }
 

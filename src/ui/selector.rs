@@ -9,7 +9,7 @@ use femtovg::Paint;
 pub struct Selector {
     pub tabs: Vec<SelectorTab>,
     pub active_tab: usize,
-    pub hover_idx: Option<SelectorHover>,
+    pub hover: Hover,
     pub scroll_offset: Vec2,
     pub size: Vec2,
 }
@@ -18,21 +18,35 @@ impl Selector {
     const TAB_HEIGHT: f32 = 50.0;
     const TAB_WIDTH: f32 = 50.0;
     const ROW_HEIGHT: f32 = 50.0;
+    const PADDING: f32 = 5.0;
     // const ITEM_HEIGHT: f32 = 50.0;
     const ITEM_WIDTH: f32 = 50.0;
+    const TOP_LEFT_OFFSET: Vec2 = Vec2::new(50., 50.);
 
     pub(crate) fn try_click(&mut self, _app: &mut App) -> PopupClickResult {
-        PopupClickResult::Close
+        match self.hover {
+            Hover::None => PopupClickResult::Close,
+            Hover::Tab { tab_idx } => {
+                self.active_tab = tab_idx;
+                return PopupClickResult::None;
+            }
+            Hover::Item { row_idx, item_idx } => {
+                let item = &self.tabs[self.active_tab].rows[row_idx].items[item_idx];
+                (item.on_click)(_app);
+                return PopupClickResult::Close;
+            }
+        }
     }
 
     pub(crate) fn draw(&self, ctx: &mut DrawCtx, image_ctx: &mut ImageCtx) {
-        let position = ctx.top_left_of_window();
+        let position = ctx.top_left_of_window(Self::TOP_LEFT_OFFSET);
 
         let DrawCtx { theme, canvas, .. } = ctx;
 
-        position
-            .with_size(self.size)
+        (position - Vec2::splat(Self::PADDING))
+            .with_size(self.size + Vec2::splat(Self::PADDING) * 2.)
             .draw_fill(canvas, &Paint::color(theme.layer_color(2)));
+
         position
             .with_size(Vec2::new(self.size.x, Self::TAB_HEIGHT))
             .draw_fill(canvas, &Paint::color(theme.layer_color(3)));
@@ -40,8 +54,7 @@ impl Selector {
             let tab_position = position + Vec2::new(idx as f32 * Self::TAB_WIDTH, 0.0);
             let rect = tab_position.with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT));
 
-            if self.hover_idx.as_ref().map_or(false, |h| h.tab_idx == idx) || idx == self.active_tab
-            {
+            if idx == self.active_tab || self.hover.is_tab(idx) {
                 rect.draw_fill(canvas, &Paint::color(theme.layer_color(4)));
             }
 
@@ -63,13 +76,19 @@ impl Selector {
         // }
     }
 
-    pub(crate) fn mouse_move(&mut self, mouse: Point2) -> bool {
+    pub(crate) fn mouse_move(&mut self, mut mouse: Point2) -> bool {
+        mouse -= Self::TOP_LEFT_OFFSET;
+
+        if mouse.y < 0. || mouse.x < 0. {
+            return false;
+        }
         if mouse.y < Self::TAB_HEIGHT {
-            self.hover_idx = Some(SelectorHover {
-                tab_idx: (mouse.x / Self::TAB_WIDTH).floor() as usize,
-                row_idx: 0,
-                item_idx: 0,
-            });
+            let idx = (mouse.x / Self::TAB_WIDTH).floor();
+            if idx >= 0. && idx < self.tabs.len() as f32 {
+                self.hover = Hover::Tab {
+                    tab_idx: idx as usize,
+                };
+            }
             true
         } else {
             // self.hover_idx = None;
@@ -120,7 +139,7 @@ impl Selector {
                 (max_height + 1) as f32 * Self::ROW_HEIGHT,
             ),
             active_tab: 0,
-            hover_idx: None,
+            hover: Hover::None,
             scroll_offset: Vec2::ZERO,
         };
 
@@ -178,10 +197,19 @@ impl Selector {
     }
 }
 
-pub struct SelectorHover {
-    pub tab_idx: usize,
-    pub row_idx: usize,
-    pub item_idx: usize,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Hover {
+    None,
+    Tab { tab_idx: usize },
+    Item { row_idx: usize, item_idx: usize },
+}
+impl Hover {
+    fn is_tab(&self, idx: usize) -> bool {
+        match self {
+            Hover::Tab { tab_idx } => *tab_idx == idx,
+            _ => false,
+        }
+    }
 }
 
 pub struct SelectorTab {

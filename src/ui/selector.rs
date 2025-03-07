@@ -1,49 +1,43 @@
-use std::sync::Arc;
-
-use femtovg::Paint;
-use rustc_hash::FxHashMap;
-
+use super::{app::App, image_ctx::ImageCtx, DrawCtx};
 use crate::{
-    state::{Fluid, FluidId, Group, GroupRow, Item, Preset, Recipe, RecipeId, Theme},
-    utils::{Point2, Rectangle, Vec2},
+    state::{FluidId, GroupRow, Preset, RecipeId},
+    utils::{Point2, Vec2},
     ItemId,
 };
-
-use super::{app::App, image_ctx::ImageCtx, Canvas};
+use femtovg::Paint;
 
 pub struct Selector {
     pub tabs: Vec<SelectorTab>,
-    pub active_tab: usize,
-    pub hover_idx: Option<SelectorHover>,
-    pub scroll_offset: Vec2,
+    // pub active_tab: usize,
+    // pub hover_idx: Option<SelectorHover>,
+    // pub scroll_offset: Vec2,
     pub size: Vec2,
 }
 impl Selector {
-    const TAB_HEIGHT: f32 = 30.0;
-    const TAB_WIDTH: f32 = 30.0;
-    const ROW_HEIGHT: f32 = 30.0;
-    const ITEM_HEIGHT: f32 = 30.0;
-    const ITEM_WIDTH: f32 = 30.0;
+    const TAB_HEIGHT: f32 = 50.0;
+    const TAB_WIDTH: f32 = 50.0;
+    const ROW_HEIGHT: f32 = 50.0;
+    // const ITEM_HEIGHT: f32 = 50.0;
+    const ITEM_WIDTH: f32 = 50.0;
 
-    pub(crate) fn try_click(self, app: &mut App) {}
+    pub(crate) fn try_click(self, _app: &mut App) {}
 
-    pub(crate) fn draw(&self, canvas: &mut Canvas, theme: &Theme, image_ctx: &mut ImageCtx) {
-        let position = Point2::new(50.0, 50.0);
+    pub(crate) fn draw(&self, ctx: &mut DrawCtx, image_ctx: &mut ImageCtx) {
+        let position = ctx.top_left_of_window();
 
-        // position
-        //     .with_size(self.size)
-        //     .draw_fill(canvas, &Paint::color(theme.layer_color(1)));
+        let DrawCtx { theme, canvas, .. } = ctx;
 
+        position
+            .with_size(self.size)
+            .draw_fill(canvas, &Paint::color(theme.layer_color(2)));
+        position
+            .with_size(Vec2::new(self.size.x, Self::TAB_HEIGHT))
+            .draw_fill(canvas, &Paint::color(theme.layer_color(3)));
         for (idx, tab) in self.tabs.iter().enumerate() {
             let tab_position = position + Vec2::new(idx as f32 * Self::TAB_WIDTH, 0.0);
-            let rect = tab_position.with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT));
-            // let color = if idx == self.active_tab {
-            //     theme.layer_color(2)
-            // } else {
-            //     theme.layer_color(1)
-            // };
-            // rect.draw_fill(canvas, &Paint::color(color));
-
+            let rect = tab_position
+                .with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT))
+                .shrink(1.);
             image_ctx.draw(canvas, &tab.icon, rect);
         }
 
@@ -61,7 +55,7 @@ impl Selector {
         // }
     }
 
-    pub(crate) fn mouse_move(&mut self, mouse: Point2) -> bool {
+    pub(crate) fn mouse_move(&mut self, _mouse: Point2) -> bool {
         false
     }
 
@@ -107,9 +101,9 @@ impl Selector {
                 max_width as f32 * Self::ITEM_WIDTH,
                 (max_height + 1) as f32 * Self::ROW_HEIGHT,
             ),
-            active_tab: 0,
-            hover_idx: None,
-            scroll_offset: Vec2::ZERO,
+            // active_tab: 0,
+            // hover_idx: None,
+            // scroll_offset: Vec2::ZERO,
         };
 
         result
@@ -166,13 +160,14 @@ impl Selector {
     }
 }
 
-pub struct SelectorHover {
-    pub tab_idx: usize,
-    pub row_idx: usize,
-    pub item_idx: usize,
-}
+// pub struct SelectorHover {
+//     pub tab_idx: usize,
+//     pub row_idx: usize,
+//     pub item_idx: usize,
+// }
 
 pub struct SelectorTab {
+    #[allow(dead_code)]
     pub name: String,
     pub icon: String,
     pub rows: Vec<SelectorRow>,
@@ -183,7 +178,10 @@ pub struct SelectorRow {
 }
 
 pub struct SelectorItem {
+    #[allow(dead_code)]
     pub name: String,
+    #[allow(dead_code)]
     pub icon: String,
+    #[allow(dead_code)]
     pub on_click: Box<dyn Fn(&mut App)>,
 }

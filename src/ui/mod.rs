@@ -25,11 +25,14 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::utils::{Point2, Vec2};
+use crate::{
+    state::Theme,
+    utils::{Point2, Vec2},
+};
 
 pub type Canvas = femtovg::Canvas<femtovg::renderer::OpenGl>;
 pub trait App {
-    fn draw(&mut self, canvas: &mut Canvas, ctx: DrawCtx);
+    fn draw(&mut self, canvas: &mut Canvas, mouse: Point2, window_size: Point2);
     fn resize(&mut self, _ctx: &mut EventCtx, _width: u32, _height: u32) {}
     fn key_down(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
     fn key_up(&mut self, _ctx: &mut EventCtx, _key: winit::event::VirtualKeyCode) {}
@@ -240,11 +243,7 @@ pub fn start(
                 ctx.canvas
                     .set_size(size.width, size.height, dpi_factor as f32);
 
-                let draw_ctx = DrawCtx {
-                    mouse: rel_mouse(mouse, ctx.canvas),
-                };
-
-                app.draw(ctx.canvas, draw_ctx);
+                app.draw(ctx.canvas, ctx.mouse, ctx.window_size);
 
                 ctx.canvas.save_with(|canvas| {
                     canvas.reset();
@@ -272,8 +271,21 @@ fn rel_mouse(abs_mouse: Point2, canvas: &Canvas) -> Point2 {
         .into()
 }
 
-pub struct DrawCtx {
+pub struct DrawCtx<'a> {
+    pub canvas: &'a mut Canvas,
+    pub theme: &'a Theme,
     pub mouse: Point2,
+    #[allow(dead_code)]
+    pub window_size: Point2,
+}
+impl DrawCtx<'_> {
+    pub fn top_left_of_window(&self) -> Point2 {
+        self.canvas
+            .transform()
+            .inversed()
+            .transform_point(0.0, 0.0)
+            .into()
+    }
 }
 
 pub struct EventCtx<'a> {

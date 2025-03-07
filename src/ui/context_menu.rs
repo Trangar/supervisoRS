@@ -1,8 +1,6 @@
+use super::{app::App, DrawCtx};
+use crate::utils::Point2;
 use femtovg::Paint;
-
-use crate::{state::Theme, utils::Point2};
-
-use super::{app::App, Canvas};
 
 pub struct ContextMenu {
     pub position: Point2,
@@ -58,7 +56,9 @@ impl ContextMenu {
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas, theme: &Theme) {
+    pub fn draw(&self, ctx: &mut DrawCtx) {
+        let DrawCtx { theme, canvas, .. } = ctx;
+
         let background = Paint::color(theme.layer_color(1));
         let border = Paint::color(theme.layer_color(2));
         let text = Paint::color(theme.layer_color(3)).with_font_size(20.);

@@ -18,10 +18,23 @@ struct ImageInfo {
 }
 
 impl ImageCtx {
+    // pub fn image_id(&mut self, canvas: &mut Canvas, image_path: &str) -> ImageId {
+    //     self.image_info(canvas, image_path).id
+    // }
+
     pub fn draw(&mut self, canvas: &mut Canvas, image_path: &str, rect: Rectangle) {
-        let image = match self.image_path_to_id.get(image_path) {
-            Some(image) => image,
-            None => {
+        let image = self.image_info(canvas, image_path);
+        let mut path = Path::new();
+        path.rect(rect.x, rect.y, rect.width, rect.height);
+        let paint = Paint::image(image.id, rect.x, rect.y, rect.width, rect.height, 0.0, 1.0);
+
+        canvas.fill_path(&path, &paint);
+    }
+
+    fn image_info<'a>(&'a mut self, canvas: &mut Canvas, image_path: &str) -> &'a ImageInfo {
+        self.image_path_to_id
+            .entry(image_path.to_owned())
+            .or_insert_with(|| {
                 let mut info = ImageInfo {
                     id: canvas
                         .load_image_file(image_path, ImageFlags::NEAREST)
@@ -32,14 +45,7 @@ impl ImageCtx {
                 let i_info = canvas.image_info(info.id).unwrap();
                 info.width = i_info.width() as f32;
                 info.height = i_info.height() as f32;
-                self.image_path_to_id.insert(image_path.to_string(), info);
-                &self.image_path_to_id[image_path]
-            }
-        };
-        let mut path = Path::new();
-        path.rect(rect.x, rect.y, rect.width, rect.height);
-        let paint = Paint::image(image.id, 0., 0., rect.width, rect.height, 0.0, 1.0);
-
-        canvas.fill_path(&path, &paint);
+                info
+            })
     }
 }

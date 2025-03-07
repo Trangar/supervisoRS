@@ -152,14 +152,14 @@ impl Vec2 {
         self.dot(*self).sqrt()
     }
 
-    pub fn with_size(self, size: Vec2) -> Rectangle {
-        Rectangle {
-            x: self.x,
-            y: self.y,
-            width: size.x,
-            height: size.y,
-        }
-    }
+    // pub fn with_size(self, size: Vec2) -> Rectangle {
+    //     Rectangle {
+    //         x: self.x,
+    //         y: self.y,
+    //         width: size.x,
+    //         height: size.y,
+    //     }
+    // }
 }
 
 impl From<(f32, f32)> for Vec2 {
@@ -309,6 +309,7 @@ impl From<Point2> for Vec2 {
     }
 }
 
+#[derive(Debug)]
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,
@@ -355,5 +356,13 @@ impl Rectangle {
         path.line_to(self.x + self.width, self.y + self.height);
         path.line_to(self.x, self.y + self.height);
         canvas.fill_path(&path, paint);
+    }
+
+    pub fn shrink(mut self, amount: f32) -> Self {
+        self.x += amount;
+        self.y += amount;
+        self.width -= amount * 2.0;
+        self.height -= amount * 2.0;
+        self
     }
 }

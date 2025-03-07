@@ -125,11 +125,18 @@ impl App {
             println!("TODO add item {:?} at {pos:?}", app.preset.items[&item_id]);
         }));
     }
-    fn open_fluid_selector(&mut self, pos: Point2) {}
+    fn open_fluid_selector(&mut self, pos: Point2) {
+        self.selector = Some(Selector::new_fluid(&self.preset, move |fluid_id, app| {
+            println!(
+                "TODO add fluid {:?} at {pos:?}",
+                app.preset.fluids[&fluid_id]
+            );
+        }));
+    }
 }
 
 impl super::App for App {
-    fn draw(&mut self, canvas: &mut Canvas, ctx: DrawCtx) {
+    fn draw(&mut self, canvas: &mut Canvas, mouse: Point2, window_size: Point2) {
         canvas.clear_rect(
             0,
             0,
@@ -170,12 +177,17 @@ impl super::App for App {
                 )),
             );
         }
+        let mut ctx = DrawCtx {
+            canvas,
+            theme: &self.theme,
+            mouse,
+            window_size,
+        };
 
         for node in self.nodes.values() {
             draw_node(
-                canvas,
+                &mut ctx,
                 node,
-                &self.theme,
                 self.hover.should_highlight_node(node) || self.dragging.should_highlight_node(node),
                 self.hover
                     .get_highlight_socket(node)
@@ -183,13 +195,14 @@ impl super::App for App {
             );
         }
 
+        let mouse = ctx.mouse;
         self.dragging
-            .draw_line(&self.nodes, canvas, &line_color, ctx.mouse);
+            .draw_line(&self.nodes, &mut ctx, &line_color, mouse);
         if let Some(context_menu) = &self.context_menu {
-            context_menu.draw(canvas, &self.theme);
+            context_menu.draw(&mut ctx);
         }
         if let Some(selector) = &self.selector {
-            selector.draw(canvas, &self.theme, &mut self.image_ctx);
+            selector.draw(&mut ctx, &mut self.image_ctx);
         }
     }
 
@@ -215,13 +228,13 @@ impl super::App for App {
     }
 
     fn mouse_up(&mut self, ctx: &mut EventCtx, button: winit::event::MouseButton) {
-        if let Some(mut menu) = std::mem::take(&mut self.context_menu) {
+        if let Some(menu) = std::mem::take(&mut self.context_menu) {
             menu.try_click(self);
             self.dragging.clear();
             ctx.redraw();
             return;
         }
-        if let Some(mut selector) = std::mem::take(&mut self.selector) {
+        if let Some(selector) = std::mem::take(&mut self.selector) {
             selector.try_click(self);
             self.dragging.clear();
             ctx.redraw();
@@ -360,13 +373,8 @@ impl App {
     }
 }
 
-fn draw_node(
-    canvas: &mut Canvas,
-    node: &Node,
-    theme: &Theme,
-    hover: bool,
-    hover_socket: Option<(usize, bool)>,
-) {
+fn draw_node(ctx: &mut DrawCtx, node: &Node, hover: bool, hover_socket: Option<(usize, bool)>) {
+    let DrawCtx { canvas, theme, .. } = ctx;
     let rectangle = get_node_position(node);
     let bg_paint = Paint::color(theme.layer_color(if hover { 2 } else { 1 }));
     let border_paint = Paint::color(theme.layer_color(if hover { 3 } else { 2 }));

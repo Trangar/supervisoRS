@@ -1,15 +1,13 @@
-use femtovg::Paint;
-use rustc_hash::FxHashMap;
-
+use super::{
+    utils::{draw_bezier, get_node_socket_position},
+    DrawCtx, EventCtx,
+};
 use crate::{
     utils::{Point2, Vec2},
     Node, NodeId, SocketPos,
 };
-
-use super::{
-    utils::{draw_bezier, get_node_socket_position},
-    Canvas, EventCtx,
-};
+use femtovg::Paint;
+use rustc_hash::FxHashMap;
 
 #[derive(Copy, Clone, Debug, PartialEq, Default)]
 pub struct Drag {
@@ -40,10 +38,11 @@ impl Drag {
     pub fn draw_line(
         &self,
         nodes: &FxHashMap<NodeId, Node>,
-        canvas: &mut Canvas,
+        ctx: &mut DrawCtx,
         paint: &Paint,
         to: Point2,
     ) {
+        let canvas = &mut ctx.canvas;
         if let DragState::LineFromNodeSocket {
             pos,
             initial_direction,

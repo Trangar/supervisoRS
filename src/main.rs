@@ -1,4 +1,7 @@
-use state::{FluidId, ItemId, Preset};
+use clap::Parser;
+use serde_json::Value;
+use state::Preset;
+use std::io::Write;
 use utils::{Point2, Vec2};
 
 mod factorio;
@@ -6,8 +9,51 @@ mod state;
 mod ui;
 mod utils;
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// Export the different data-raw-dump.json types to `/tmp/`. Useful for figuring out what types exist
+    #[arg(long)]
+    export_tmp: bool,
+    /// Convert `preset/NAME/script-output/data-raw-dump.json` to `preset/NAME/preset.json`
+    #[arg(long)]
+    convert_data_raw_dump: bool,
+}
+
 fn main() {
-    const PRESET_NAME: &str = "space_age";
+    let cli = Cli::parse();
+
+    if cli.export_tmp {
+        let content =
+            std::fs::read_to_string("preset/py/script-output/data-raw-dump.json").unwrap();
+        let _ = std::fs::remove_dir("tmp");
+        let _ = std::fs::create_dir("tmp");
+        let json: Value = serde_json::from_str(&content).unwrap();
+        let Value::Object(o) = json else {
+            unreachable!()
+        };
+        for (ty, list) in o {
+            let Value::Object(o) = list else {
+                unreachable!()
+            };
+
+            let mut file = std::fs::File::create(format!("tmp/{ty}.json")).unwrap();
+            writeln!(&mut file, "[").unwrap();
+
+            for (i, v) in o.values().enumerate() {
+                if i > 0 {
+                    writeln!(&mut file, ",").unwrap();
+                }
+                serde_json::to_writer(&mut file, v).unwrap();
+            }
+            writeln!(&mut file).unwrap();
+            writeln!(&mut file, "]").unwrap();
+        }
+        return;
+    }
+
+    if cli.convert_data_raw_dump {}
+    const PRESET_NAME: &str = "py";
     let preset_path = std::env::current_dir()
         .unwrap()
         .join("preset")
@@ -36,10 +82,10 @@ pub struct NodeId(pub usize);
 // #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // struct FluidId(pub usize);
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum ItemOrFluidId {
-    Item(ItemId),
-    Fluid(FluidId),
+    Item(String),
+    Fluid(String),
 }
 
 struct Node {

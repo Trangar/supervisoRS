@@ -3,8 +3,8 @@ use supervisors_derive::CustomDeserialize;
 
 #[derive(Debug, CustomDeserialize)]
 pub struct RecipeIngredient<'a> {
-    pub ty: &'a str,
-    pub name: &'a str,
+    pub ty: String,
+    pub name: String,
     pub amount: f32,
     pub catalyst_amount: Option<f32>,
     pub minimum_temperature: Option<f32>,
@@ -13,5 +13,5 @@ pub struct RecipeIngredient<'a> {
     pub ignored_by_stats: Option<usize>,
 
     #[remaining]
-    pub remaining: FxHashMap<&'a str, serde_json::Value>,
+    pub remaining: FxHashMap<String, serde_json::Value>,
 }

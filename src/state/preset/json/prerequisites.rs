@@ -2,7 +2,7 @@ use rustc_hash::FxHashSet;
 
 #[derive(Debug)]
 pub struct Prerequisites<'a> {
-    pub prerequisites: FxHashSet<&'a str>,
+    pub prerequisites: FxHashSet<String>,
 }
 
 impl<'de: 'a, 'a> serde::de::Deserialize<'de> for Prerequisites<'a> {
@@ -40,7 +40,7 @@ impl<'de: 'a, 'a> serde::de::Deserialize<'de> for Prerequisites<'a> {
             {
                 let mut prerequisites = FxHashSet::default();
                 while let Some((key, value)) = map.next_entry()? {
-                    let _key: &'a str = key;
+                    let _key: String = key;
                     prerequisites.insert(value);
                 }
                 Ok(Prerequisites { prerequisites })

@@ -2,9 +2,13 @@ use femtovg::{Paint, Path};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    state::{FluidId, ItemId},
+    // state::{FluidId, ItemId},
     ui::Canvas,
-    Cardinal, InOutput, ItemOrFluidId, Node, NodeId,
+    Cardinal,
+    InOutput,
+    ItemOrFluidId,
+    Node,
+    NodeId,
 };
 
 pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
@@ -16,21 +20,21 @@ pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
             position: Point2::new(100.0, 100.0),
             inputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(0)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(0)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
             outputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(1)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(1)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
@@ -46,21 +50,21 @@ pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
 
             inputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(1)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(1)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
             outputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(2)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(2)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
@@ -76,21 +80,21 @@ pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
 
             inputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(2)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(2)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
             outputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(3)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(3)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
@@ -106,21 +110,21 @@ pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
 
             inputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(3)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(3)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],
             outputs: vec![
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Item(ItemId(0)),
+                    item_or_fluid: ItemOrFluidId::Item(String::new()),
                     rate: 1.0,
                 },
                 InOutput {
-                    item_or_fluid: ItemOrFluidId::Fluid(FluidId(0)),
+                    item_or_fluid: ItemOrFluidId::Fluid(String::new()),
                     rate: 1.0,
                 },
             ],

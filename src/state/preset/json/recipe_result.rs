@@ -3,8 +3,8 @@ use supervisors_derive::CustomDeserialize;
 
 #[derive(Debug, CustomDeserialize)]
 pub struct RecipeResult<'a> {
-    pub ty: &'a str,
-    pub name: &'a str,
+    pub ty: String,
+    pub name: String,
     pub amount: Option<f32>,
     pub probability: Option<f32>,
     pub amount_min: Option<f32>,
@@ -17,5 +17,5 @@ pub struct RecipeResult<'a> {
     pub percent_spoiled: Option<f32>,
 
     #[remaining]
-    pub remaining: FxHashMap<&'a str, serde_json::Value>,
+    pub remaining: FxHashMap<String, serde_json::Value>,
 }

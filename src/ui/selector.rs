@@ -1,8 +1,7 @@
 use super::{app::App, image_ctx::ImageCtx, DrawCtx, PopupClickResult};
 use crate::{
-    state::{FluidId, GroupRow, Preset, RecipeId},
+    state::{FluidId, GroupRow, ItemId, Preset, RecipeId},
     utils::{Point2, Vec2},
-    ItemId,
 };
 use femtovg::Paint;
 
@@ -17,10 +16,9 @@ pub struct Selector {
 impl Selector {
     const TAB_HEIGHT: f32 = 50.0;
     const TAB_WIDTH: f32 = 50.0;
-    const ROW_HEIGHT: f32 = 50.0;
     const PADDING: f32 = 5.0;
-    // const ITEM_HEIGHT: f32 = 50.0;
-    const ITEM_WIDTH: f32 = 50.0;
+    const ITEM_HEIGHT: f32 = 30.0;
+    const ITEM_WIDTH: f32 = 30.0;
     const TOP_LEFT_OFFSET: Vec2 = Vec2::new(50., 50.);
 
     pub(crate) fn try_click(&mut self, _app: &mut App) -> PopupClickResult {
@@ -58,22 +56,20 @@ impl Selector {
                 rect.draw_fill(canvas, &Paint::color(theme.layer_color(4)));
             }
 
-            let rect = rect.shrink(1.);
-            image_ctx.draw(canvas, &tab.icon, rect);
+            image_ctx.draw(canvas, &tab.icon, rect.shrink(1.));
         }
 
-        // let row_position = position + Vec2::new(0.0, Self::TAB_HEIGHT);
-        // for (row_idx, row) in self.tabs[self.active_tab].rows.iter().enumerate() {
-        //     let row_position = row_position + Vec2::new(0.0, row_idx as f32 * Self::ROW_HEIGHT);
-        //     for (item_idx, item) in row.items.iter().enumerate() {
-        //         let item_position =
-        //             row_position + Vec2::new(Self::ITEM_WIDTH * item_idx as f32, 0.0);
-        //         let rect = item_position.with_size((Self::ITEM_WIDTH, Self::ITEM_HEIGHT).into());
-        //         rect.draw_fill(canvas, &Paint::color(theme.layer_color(1)));
+        let row_position = position + Vec2::new(0.0, Self::TAB_HEIGHT);
+        for (row_idx, row) in self.tabs[self.active_tab].rows.iter().enumerate() {
+            let row_position = row_position + Vec2::new(0.0, row_idx as f32 * Self::ITEM_HEIGHT);
+            for (item_idx, item) in row.items.iter().enumerate() {
+                let item_position =
+                    row_position + Vec2::new(Self::ITEM_WIDTH * item_idx as f32, 0.0);
+                let rect = item_position.with_size((Self::ITEM_WIDTH, Self::ITEM_HEIGHT).into());
 
-        //         image_ctx.draw(canvas, &item.icon, rect);
-        //     }
-        // }
+                image_ctx.draw(canvas, &item.icon, rect.shrink(1.));
+            }
+        }
     }
 
     pub(crate) fn mouse_move(&mut self, mut mouse: Point2) -> bool {
@@ -101,7 +97,7 @@ impl Selector {
         F: Fn(&'a GroupRow) -> R,
         R: Iterator<Item = SelectorItem> + 'a,
     {
-        let mut tabs: Vec<SelectorTab> = preset
+        let tabs: Vec<SelectorTab> = preset
             .groups
             .iter()
             .map(|g| SelectorTab {
@@ -110,18 +106,22 @@ impl Selector {
                 rows: g
                     .rows
                     .iter()
-                    .map(&mapper)
-                    .map(|iter| SelectorRow {
-                        items: iter.collect(),
+                    .map(|row| (row, mapper(row)))
+                    .filter_map(|(row, iter)| {
+                        let row = SelectorRow {
+                            name: row.name.clone(),
+                            items: iter.collect(),
+                        };
+                        if row.items.is_empty() {
+                            None
+                        } else {
+                            Some(row)
+                        }
                     })
                     .collect(),
             })
+            .filter(|g| g.rows.len() > 0)
             .collect();
-
-        for tab in &mut tabs {
-            tab.rows.retain(|row| !row.items.is_empty());
-        }
-        // tabs.retain(|tab| !tab.rows.is_empty());
 
         let mut max_width = tabs.len();
         let mut max_height = 0;
@@ -136,7 +136,7 @@ impl Selector {
             tabs,
             size: Vec2::new(
                 max_width as f32 * Self::ITEM_WIDTH,
-                (max_height + 1) as f32 * Self::ROW_HEIGHT,
+                max_height as f32 * Self::ITEM_HEIGHT + Self::TAB_HEIGHT,
             ),
             active_tab: 0,
             hover: Hover::None,
@@ -152,7 +152,7 @@ impl Selector {
     ) -> Self {
         Self::new(preset, move |row| {
             let onclick = onclick.clone();
-            row.recipes.iter().copied().map(move |recipe_id| {
+            row.recipes.iter().cloned().map(move |recipe_id| {
                 let recipe = &preset.recipes[&recipe_id];
                 let onclick = onclick.clone();
                 SelectorItem {
@@ -166,7 +166,7 @@ impl Selector {
     pub fn new_item(preset: &Preset, onclick: impl Fn(ItemId, &mut App) + Clone + 'static) -> Self {
         Self::new(preset, move |row| {
             let onclick = onclick.clone();
-            row.items.iter().copied().map(move |item_id| {
+            row.items.iter().cloned().map(move |item_id| {
                 let item = &preset.items[&item_id];
                 let onclick = onclick.clone();
                 SelectorItem {
@@ -184,7 +184,7 @@ impl Selector {
     ) -> Self {
         Self::new(preset, move |row| {
             let onclick = onclick.clone();
-            row.fluids.iter().copied().map(move |fluid_id| {
+            row.fluids.iter().cloned().map(move |fluid_id| {
                 let fluid = &preset.fluids[&fluid_id];
                 let onclick = onclick.clone();
                 SelectorItem {
@@ -220,6 +220,7 @@ pub struct SelectorTab {
 }
 
 pub struct SelectorRow {
+    pub name: String,
     pub items: Vec<SelectorItem>,
 }
 
@@ -230,4 +231,13 @@ pub struct SelectorItem {
     pub icon: String,
     #[allow(dead_code)]
     pub on_click: Box<dyn Fn(&mut App)>,
+}
+
+impl std::fmt::Debug for SelectorItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SelectorItem")
+            .field("name", &self.name)
+            .field("icon", &self.icon)
+            .finish()
+    }
 }

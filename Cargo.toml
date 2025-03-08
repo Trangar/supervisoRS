@@ -22,6 +22,6 @@ shellexpand = "3.1.0"
 sysinfo = "0.32.0"
 toml = "0.8.19"
 winit = "0.28.7"
-
-supervisors-derive = { path = "libs/derive" }
 itertools = "0.13.0"
+clap = { version = "4.5.31", features = ["derive"] }
+serde_derive = "1.0.218"

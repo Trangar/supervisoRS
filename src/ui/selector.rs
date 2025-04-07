@@ -1,9 +1,9 @@
-use super::{app::App, image_ctx::ImageCtx, DrawCtx, PopupClickResult};
+use super::{PopupClickResult, app::App};
 use crate::{
-    state::{FluidId, GroupRow, ItemId, Preset, RecipeId},
+    gfx::{DrawUiCtx, Paint},
+    state::{FluidId, GroupRow, ItemId, Preset, RecipeId, Theme},
     utils::{Point2, Vec2},
 };
-use femtovg::Paint;
 
 pub struct Selector {
     pub tabs: Vec<SelectorTab>,
@@ -19,7 +19,7 @@ impl Selector {
     const PADDING: f32 = 5.0;
     const ITEM_HEIGHT: f32 = 30.0;
     const ITEM_WIDTH: f32 = 30.0;
-    const TOP_LEFT_OFFSET: Vec2 = Vec2::new(50., 50.);
+    const TOP_LEFT: Point2 = Point2::new(50., 50.);
 
     pub(crate) fn try_click(&mut self, _app: &mut App) -> PopupClickResult {
         match self.hover {
@@ -36,30 +36,28 @@ impl Selector {
         }
     }
 
-    pub(crate) fn draw(&self, ctx: &mut DrawCtx, image_ctx: &mut ImageCtx) {
-        let position = ctx.top_left_of_window(Self::TOP_LEFT_OFFSET);
+    pub(crate) fn draw(&self, ctx: &mut DrawUiCtx, theme: &Theme) {
+        ctx.draw_fill(
+            Point2::ZERO.with_size(self.size + Vec2::splat(Self::PADDING) * 2.),
+            Paint::color(theme.layer_color(2)),
+        );
 
-        let DrawCtx { theme, canvas, .. } = ctx;
-
-        (position - Vec2::splat(Self::PADDING))
-            .with_size(self.size + Vec2::splat(Self::PADDING) * 2.)
-            .draw_fill(canvas, &Paint::color(theme.layer_color(2)));
-
-        position
-            .with_size(Vec2::new(self.size.x, Self::TAB_HEIGHT))
-            .draw_fill(canvas, &Paint::color(theme.layer_color(3)));
+        ctx.draw_fill(
+            Self::TOP_LEFT.with_size(Vec2::new(self.size.x, Self::TAB_HEIGHT)),
+            Paint::color(theme.layer_color(3)),
+        );
         for (idx, tab) in self.tabs.iter().enumerate() {
-            let tab_position = position + Vec2::new(idx as f32 * Self::TAB_WIDTH, 0.0);
+            let tab_position = Self::TOP_LEFT + Point2::new(idx as f32 * Self::TAB_WIDTH, 0.0);
             let rect = tab_position.with_size(Vec2::new(Self::TAB_WIDTH, Self::TAB_HEIGHT));
 
             if idx == self.active_tab || self.hover.is_tab(idx) {
-                rect.draw_fill(canvas, &Paint::color(theme.layer_color(4)));
+                ctx.draw_fill(rect, Paint::color(theme.layer_color(4)));
             }
 
-            image_ctx.draw(canvas, &tab.icon, rect.shrink(1.));
+            ctx.draw_image(&tab.icon, rect.shrink(1.));
         }
 
-        let row_position = position + Vec2::new(0.0, Self::TAB_HEIGHT);
+        let row_position = Self::TOP_LEFT + Point2::new(0.0, Self::TAB_HEIGHT);
         for (row_idx, row) in self.tabs[self.active_tab].rows.iter().enumerate() {
             let row_position = row_position + Vec2::new(0.0, row_idx as f32 * Self::ITEM_HEIGHT);
             for (item_idx, item) in row.items.iter().enumerate() {
@@ -67,13 +65,13 @@ impl Selector {
                     row_position + Vec2::new(Self::ITEM_WIDTH * item_idx as f32, 0.0);
                 let rect = item_position.with_size((Self::ITEM_WIDTH, Self::ITEM_HEIGHT).into());
 
-                image_ctx.draw(canvas, &item.icon, rect.shrink(1.));
+                ctx.draw_image(&item.icon, rect.shrink(1.));
             }
         }
     }
 
     pub(crate) fn mouse_move(&mut self, mut mouse: Point2) -> bool {
-        mouse -= Self::TOP_LEFT_OFFSET;
+        mouse -= Self::TOP_LEFT;
 
         if mouse.y < 0. || mouse.x < 0. {
             return false;

@@ -1,15 +1,7 @@
-use femtovg::{Paint, Path};
 use rustc_hash::FxHashMap;
+use sdl3::render::{FPoint, FRect};
 
-use crate::{
-    // state::{FluidId, ItemId},
-    ui::Canvas,
-    Cardinal,
-    InOutput,
-    ItemOrFluidId,
-    Node,
-    NodeId,
-};
+use crate::{Cardinal, InOutput, ItemOrFluidId, Node, NodeId};
 
 pub fn demo_nodes() -> FxHashMap<NodeId, Node> {
     let mut nodes = FxHashMap::default();
@@ -209,7 +201,7 @@ pub struct Point2 {
 impl Point2 {
     pub const ZERO: Point2 = Point2 { x: 0.0, y: 0.0 };
 
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
@@ -249,6 +241,16 @@ impl Point2 {
             width: size.x,
             height: size.y,
         }
+    }
+
+    pub(crate) fn spread(n: f32) -> Self {
+        Self { x: n, y: n }
+    }
+}
+
+impl Into<FPoint> for Point2 {
+    fn into(self) -> FPoint {
+        FPoint::new(self.x, self.y)
     }
 }
 
@@ -312,6 +314,21 @@ impl std::ops::Sub<Point2> for Point2 {
     }
 }
 
+impl std::ops::SubAssign<Point2> for Point2 {
+    fn sub_assign(&mut self, other: Point2) {
+        self.x -= other.x;
+        self.y -= other.y;
+    }
+}
+
+impl std::ops::Neg for Point2 {
+    type Output = Point2;
+
+    fn neg(self) -> Point2 {
+        Point2::new(-self.x, -self.y)
+    }
+}
+
 impl From<Vec2> for Point2 {
     fn from(vec: Vec2) -> Self {
         Point2::new(vec.x, vec.y)
@@ -324,7 +341,7 @@ impl From<Point2> for Vec2 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,
@@ -333,6 +350,14 @@ pub struct Rectangle {
 }
 
 impl Rectangle {
+    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
     pub fn centered_square(center: Point2, size: f32) -> Self {
         Self {
             x: center.x - size / 2.0,
@@ -347,31 +372,31 @@ impl Rectangle {
         x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
     }
 
-    pub fn draw_rounded(
-        &self,
-        canvas: &mut Canvas,
-        bg_paint: &Paint,
-        border_paint: &Paint,
-        radius: f32,
-    ) {
-        let mut path = Path::new();
-        path.rounded_rect(self.x, self.y, self.width, self.height, radius);
-        canvas.fill_path(&path, bg_paint);
-        canvas.stroke_path(&path, border_paint);
-    }
+    // pub fn draw_rounded(
+    //     &self,
+    //     canvas: &mut Canvas,
+    //     bg_paint: &Paint,
+    //     border_paint: &Paint,
+    //     radius: f32,
+    // ) {
+    //     let mut path = Path::new();
+    //     path.rounded_rect(self.x, self.y, self.width, self.height, radius);
+    //     canvas.fill_path(&path, bg_paint);
+    //     canvas.stroke_path(&path, border_paint);
+    // }
 
     pub fn center(&self) -> Point2 {
         Point2::new(self.x + self.width / 2.0, self.y + self.height / 2.0)
     }
 
-    pub(crate) fn draw_fill(&self, canvas: &mut Canvas, paint: &Paint) {
-        let mut path = Path::new();
-        path.move_to(self.x, self.y);
-        path.line_to(self.x + self.width, self.y);
-        path.line_to(self.x + self.width, self.y + self.height);
-        path.line_to(self.x, self.y + self.height);
-        canvas.fill_path(&path, paint);
-    }
+    // pub(crate) fn draw_fill(&self, canvas: &mut Canvas, paint: &Paint) {
+    //     let mut path = Path::new();
+    //     path.move_to(self.x, self.y);
+    //     path.line_to(self.x + self.width, self.y);
+    //     path.line_to(self.x + self.width, self.y + self.height);
+    //     path.line_to(self.x, self.y + self.height);
+    //     canvas.fill_path(&path, paint);
+    // }
 
     pub fn shrink(mut self, amount: f32) -> Self {
         self.x += amount;
@@ -379,5 +404,19 @@ impl Rectangle {
         self.width -= amount * 2.0;
         self.height -= amount * 2.0;
         self
+    }
+
+    pub(crate) fn right(self) -> f32 {
+        self.x + self.width
+    }
+
+    pub(crate) fn bottom(self) -> f32 {
+        self.y + self.height
+    }
+}
+
+impl Into<sdl3::render::FRect> for Rectangle {
+    fn into(self) -> sdl3::render::FRect {
+        sdl3::render::FRect::new(self.x, self.y, self.width, self.height)
     }
 }

@@ -2,8 +2,8 @@ mod id_generator;
 mod json;
 
 use id_generator::IdGenerator;
-use instant::Instant;
 use itertools::Itertools;
+use std::time::Instant;
 
 use rustc_hash::FxHashMap;
 

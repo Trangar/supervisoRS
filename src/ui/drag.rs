@@ -1,12 +1,9 @@
-use super::{
-    utils::{draw_bezier, get_node_socket_position},
-    DrawCtx, EventCtx,
-};
+use super::{EventCtx, utils::get_node_socket_position};
 use crate::{
-    utils::{Point2, Vec2},
     Node, NodeId, SocketPos,
+    gfx::{DrawWorldCtx, Paint},
+    utils::{Point2, Vec2},
 };
-use femtovg::Paint;
 use rustc_hash::FxHashMap;
 
 #[derive(Copy, Clone, Debug, PartialEq, Default)]
@@ -38,19 +35,17 @@ impl Drag {
     pub fn draw_line(
         &self,
         nodes: &FxHashMap<NodeId, Node>,
-        ctx: &mut DrawCtx,
+        ctx: &mut DrawWorldCtx,
         paint: &Paint,
         to: Point2,
     ) {
-        let canvas = &mut ctx.canvas;
         if let DragState::LineFromNodeSocket {
             pos,
             initial_direction,
             ..
         } = &self.state
         {
-            draw_bezier(
-                canvas,
+            ctx.draw_bezier(
                 paint,
                 get_node_socket_position(
                     nodes.get(&pos.node_id).unwrap(),
@@ -116,7 +111,7 @@ impl Drag {
         nodes: &mut FxHashMap<NodeId, Node>,
     ) {
         if let Some(start_point) = self.start_drag {
-            if (ctx.mouse - start_point).length() > 10. {
+            if (ctx.world_mouse - start_point).length() > 10. {
                 self.overcame_min_distance = true;
             }
         }

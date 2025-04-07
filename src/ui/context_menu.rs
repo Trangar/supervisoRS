@@ -1,6 +1,9 @@
-use super::{app::App, DrawCtx};
-use crate::utils::Point2;
-use femtovg::Paint;
+use super::app::App;
+use crate::{
+    gfx::{DrawUiCtx, Paint},
+    state::Theme,
+    utils::{Point2, Rectangle},
+};
 
 pub struct ContextMenu {
     pub position: Point2,
@@ -56,41 +59,30 @@ impl ContextMenu {
         }
     }
 
-    pub fn draw(&self, ctx: &mut DrawCtx) {
-        let DrawCtx { theme, canvas, .. } = ctx;
-
+    pub fn draw(&self, ctx: &mut DrawUiCtx, theme: &Theme) {
         let background = Paint::color(theme.layer_color(1));
         let border = Paint::color(theme.layer_color(2));
-        let text = Paint::color(theme.layer_color(3)).with_font_size(20.);
+        let text = Paint::color(theme.layer_color(3)).with_font_size(20);
 
         for (i, item) in self.items.iter().enumerate() {
             let y = self.position.y + i as f32 * Self::ITEM_HEIGHT;
-            let mut path = femtovg::Path::new();
-            path.rect(self.position.x, y, Self::WIDTH, Self::ITEM_HEIGHT);
-
-            let tmp_paint_1: Paint;
-            let tmp_paint_2: Paint;
+            let rect = Rectangle::new(self.position.x, y, Self::WIDTH, Self::ITEM_HEIGHT);
 
             let background_color = if self.hover_idx == Some(i) {
-                tmp_paint_1 = Paint::color(theme.layer_color(2));
-                &tmp_paint_1
+                Paint::color(theme.layer_color(2))
             } else {
-                &background
+                background
             };
 
             let text_color = if self.hover_idx == Some(i) {
-                tmp_paint_2 = Paint::color(theme.layer_color(3)).with_font_size(text.font_size());
-                &tmp_paint_2
+                Paint::color(theme.layer_color(3)).with_font_size(text.font_size.unwrap())
             } else {
-                &text
+                text
             };
 
-            canvas.fill_path(&mut path, background_color);
-            canvas.stroke_path(&mut path, &border);
+            ctx.draw_fill_border(rect, background_color, border);
 
-            canvas
-                .fill_text(self.position.x + 10.0, y + 24.0, &item.label, text_color)
-                .unwrap();
+            ctx.fill_text_centered(rect, &item.label, text_color);
         }
     }
 

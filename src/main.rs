@@ -5,6 +5,7 @@ use std::io::Write;
 use utils::{Point2, Vec2};
 
 mod factorio;
+mod gfx;
 mod state;
 mod ui;
 mod utils;
@@ -70,7 +71,26 @@ fn main() {
     }
 
     let preset = Preset::load(PRESET_NAME);
-    ui::start(1000, 800, "SupervisoRS", true, ui::app::App::new(preset));
+    let mut window = gfx::Window::new();
+    for item in preset.items.values() {
+        window
+            .image_cache
+            .textures_to_load
+            .insert(preset.icon_for_item(item));
+    }
+    for fluid in preset.fluids.values() {
+        window
+            .image_cache
+            .textures_to_load
+            .insert(preset.icon_for_fluid(fluid));
+    }
+    for recipe in preset.recipes.values() {
+        window
+            .image_cache
+            .textures_to_load
+            .insert(preset.icon_for_recipe(recipe));
+    }
+    gfx::run(&mut window, &mut ui::app::App::new(preset));
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

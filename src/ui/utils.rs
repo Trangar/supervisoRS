@@ -1,11 +1,4 @@
-use femtovg::{Paint, Path};
-
-use crate::{
-    utils::{Point2, Rectangle, Vec2},
-    Node, BEZIER_CURVE_FACTOR,
-};
-
-use super::Canvas;
+use crate::{Node, utils::Rectangle};
 
 pub fn get_node_socket_position(node: &Node, socket: usize, is_input: bool) -> Rectangle {
     let (offset, step) = if is_input {
@@ -31,28 +24,28 @@ pub fn get_node_socket_position(node: &Node, socket: usize, is_input: bool) -> R
     Rectangle::centered_square(pos, 20.)
 }
 
-pub fn draw_bezier(
-    canvas: &mut Canvas,
-    paint: &Paint,
-    from: Point2,
-    from_direction: Vec2,
-    to: Point2,
-    to_direction: Option<Vec2>,
-) {
-    let mut path = Path::new();
-    path.move_to(from.x, from.y);
-    let end_direction = match to_direction {
-        Some(dir) => -dir,
-        None => to.relative_to(from) * (from.distance(to) * BEZIER_CURVE_FACTOR),
-    };
-    path.bezier_to(
-        from.x + from_direction.x,
-        from.y + from_direction.y,
-        to.x - end_direction.x,
-        to.y - end_direction.y,
-        to.x,
-        to.y,
-    );
+// pub fn draw_bezier(
+//     canvas: &mut Canvas,
+//     paint: &Paint,
+//     from: Point2,
+//     from_direction: Vec2,
+//     to: Point2,
+//     to_direction: Option<Vec2>,
+// ) {
+//     let mut path = Path::new();
+//     path.move_to(from.x, from.y);
+//     let end_direction = match to_direction {
+//         Some(dir) => -dir,
+//         None => to.relative_to(from) * (from.distance(to) * BEZIER_CURVE_FACTOR),
+//     };
+//     path.bezier_to(
+//         from.x + from_direction.x,
+//         from.y + from_direction.y,
+//         to.x - end_direction.x,
+//         to.y - end_direction.y,
+//         to.x,
+//         to.y,
+//     );
 
-    canvas.stroke_path(&path, paint);
-}
+//     canvas.stroke_path(&path, paint);
+// }

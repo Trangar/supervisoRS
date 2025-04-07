@@ -1,4 +1,4 @@
-use femtovg::Color;
+use crate::gfx::Color;
 use serde::ser::SerializeStruct;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -13,7 +13,7 @@ pub struct Theme {
 
 impl Default for Theme {
     fn default() -> Self {
-        match dark_light::detect() {
+        match dark_light::detect().unwrap() {
             dark_light::Mode::Light => Self::light(),
             _ => Self::dark(),
         }
@@ -243,7 +243,7 @@ pub struct Hsla {
 
 impl Hsla {
     pub const fn new(color: Color) -> Self {
-        let Color { r, g, b, a } = color;
+        let [r, g, b, a] = color.to_f32_array();
 
         // f32.min and f32.max are not available in const
         // so we have to do it manually
